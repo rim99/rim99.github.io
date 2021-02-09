@@ -19,7 +19,7 @@
 # in the templates via {{ site.myvariable }}.
 
 title: Zhang Xin's BLOG
-email: your-email@example.com
+# email: your-email@example.com
 description: >- # this means to ignore newlines until "baseurl:"
   This is a personal blog. All infomation created by myself are under CC-BY-SA-3.0 License.
   本站为个人博客。其中本人原创内容在CC-BY-SA-3.0许可下发布。
