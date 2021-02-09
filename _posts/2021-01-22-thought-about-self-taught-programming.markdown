@@ -59,7 +59,7 @@ categories: 原创
 
 6. Python Thread 和 CPU 硬件线程是什么关系？
 
-7. 在做HTTP服务器端选型的时候，为什么选Tornado，不选CherryPy的Cheroot？ Java也是类似的，Tomcat和Jetty对比过吗？谁的性能好一点，为什么好？
+7. 在做HTTP服务器框架选型的时候，为什么选Tornado，不选CherryPy？ Java也是类似的，Tomcat和Jetty对比过吗？谁的性能好一点，为什么好？
 
 8. epoll比select好在哪里？
 
