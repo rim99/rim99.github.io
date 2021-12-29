@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "在Debian上使用KVM安装虚拟机"
+title: "在Debian下安装KVM虚拟机"
 date: 2021-12-28 16:04:03 +0800
 categories: 原创
 ---
