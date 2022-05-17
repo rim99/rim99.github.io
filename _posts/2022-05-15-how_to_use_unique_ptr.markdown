@@ -22,7 +22,7 @@ do_somthing_with(s1);
 println!("{}, world!", s1);  // 此时，s1不再指向"hello"字符串，所以会编译报错
 ```
 
-为了避免函数调用之后，所有权不发生变成更。Rust引入了一个概念，叫做“引用”。引用有点像指针，但是编译器保证引用所指向的地址一定不为空。
+为了避免函数调用造成“值”的所有权发生变成更，Rust引入了一个概念，叫做“引用”。引用有点像指针，但是编译器保证引用所指向的地址一定不为空。
 
 ```
 let s1 = String::from("hello");
@@ -115,6 +115,3 @@ int main() {
 
 * [Understanding Ownership - Rust, the Book](https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html)
 * [std::unique_ptr - cppreference.com](https://en.cppreference.com/w/cpp/memory/unique_ptr)
-
-
-
