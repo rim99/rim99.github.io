@@ -2,7 +2,7 @@
 layout: post
 title: "Goroutine的GMP模型"
 date: 2021-11-06 14:28:28 +0800
-categories: 原创
+categories: 笔记
 ---
 
 Goroutine是Go语言实现的并发编程的基础设施之一，是对顺序计算流程的抽象。从形式来看，Goroutine很像是线程Thread，因为同一个Goroutine里的逻辑都是顺序执行的。不过，Goroutine在实现上更为轻量。一个Goroutine的栈空间在默认情况下只有2KB，仅在必要时弹性变化。《Go语言并发之道》一书中对Linux系统线程和Goroutine的上下文切换开销做了对比。Linux系统线程切换一次上下文的耗时平均为1.4us，而Goroutine仅仅200多ns，是线程耗时的大约15%。

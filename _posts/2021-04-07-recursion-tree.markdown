@@ -2,7 +2,7 @@
 layout: post
 title: "递归树"
 date: 2021-04-07 19:28:31 +0800
-categories: 原创
+categories: 笔记
 ---
 
 > 本文为《[Algorithms](https://jeffe.cs.illinois.edu/teaching/algorithms/)》第一章的阅读笔记。
