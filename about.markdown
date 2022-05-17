@@ -1,15 +1,18 @@
 ---
 layout: page
-title: About
+title: About Me
 permalink: /about/
 ---
 
-2017年起开始从事Web后端开发。
+2017年起开始从事服务器端应用开发。工作中使用过的编程语言包括：
+- Java，2年
+- Scala，2年
+- Kotlin，1年
+- Lua，0.25年
+- Python/Shell，持续使用的脚本语言
 
-VIM党。
+2022年起开始从事基础设施运维。
 
-熟悉Java、Scala、Kotlin、Python。
+VIM党。极度喜欢Scala。龟速学习C++/Go/Rust中。。。
 
-极度喜欢Scala。正在学习C++。
-
-联系我：`echo emhhbmd4aW5Ab3V0bG9vay5jb20K | base64 -d`
+如果需要，可以联系我：`echo emhhbmd4aW5Ab3V0bG9vay5jb20K | base64 -d`
