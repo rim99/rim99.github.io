@@ -1,31 +1,31 @@
 ---
 layout: post
-title: "一种打造Q弹的多主Postgres集群的思路"
+title: "让Postgres集群再次Q弹"
 date: 2022-07-24 10:57:34 +0800
 categories: 原创
 ---
 
-建设可水平扩展的数据库系统一直是业界发力的主要方向之一。近年来各种新生NeqSQL数据库层出不穷，解决的痛点之一就是水平扩展。与此同时，老牌的Postgres也没有闲着。近期即将GA的PostgreSQL 15就增加了一项新功能，可以很好地改善水平扩展的问题。
+建设可水平扩展的数据库系统一直是业界发力的主要方向之一。近年来各种新生NeqSQL数据库层出不穷，解决的痛点之一就是水平扩展。与此同时，老牌的Postgres也没有闲着。近期即将GA的Postgres 15就增加了一项新功能，可以很好地改善水平扩展的问题。
 
 ## 过去的方式
 
-分布式系统离不开数据复制功能，数据库系统也不例外。PG在14及以前，支持两种复制方式：
+分布式系统离不开数据复制功能，数据库系统也不例外。Postgres支持两种复制方式：
 * 流式复制（Stream Replication）:基于WAL日志的复制方式。相比更早以前的WAL日志文件复制，复制延迟更低。
 * 逻辑复制（Logical Replication）：相比流式复制，可以做到更小粒度的数据复制。截止14大版本，已经可以做到表级复制。
 
 以[Yugabyte](https://www.yugabyte.com/)数据库为例。
 
-Yugabyte是一个基于Postgres改造的分布式NewSQL数据库。如果在Yugabyte中创建一个数据表，其内部实现中会创建Yugabyte的tablet，对应于多个Postgres数据表。不同的tablet各自实现一主多从的复制体系。所以说Yugabyte使用的就是Postgres的表级逻辑复制。
+Yugabyte是一个基于Postgres改造的分布式NewSQL数据库。如果在Yugabyte中创建一个数据表，其内部实现中会创建多个Yugabyte的tablet，对应于Postgres数据表。不同的tablet各自实现一主多从的复制体系。所以说Yugabyte使用的就是Postgres的表级逻辑复制。
 
-Postgres里每张数据表、索引在大小不超过1GB的时候，会放置在单独的文件中。因此，在读取Yugabyte数据表记录的时候，如果没有很好的条件来限制tablet的范围，那么一次数据表查询会读取多个文件，造成性能损失。
+Postgres里每张数据表、索引在大小不超过1GB的时候，会放置在单独的文件中。因此，在读取Yugabyte数据表记录的时候，如果没有很好的条件来限制tablet的范围，那么一次数据表查询会读取多个文件，增加了时间开销。
 
 Tablet还有一个问题，就是数据再分配的问题。当一个tablet过大，需要数据拆分的时候，系统得再创建新的tablet，做数据复制。很麻烦。
 
-## PG 15逻辑复制的行级过滤器
+## Postgres 15逻辑复制的行级过滤器
 
-在PG 15中，逻辑复制增加了一个新功能-行级过滤器（Row Filter）可以很好地解决上述问题。
+在Postgres 15中，逻辑复制增加了一个新功能-行级过滤器（Row Filter）可以很好地解决上述问题。
 
-PG的逻辑使用的是订阅发布模型。这个行级过滤器就是在发布端设置谓词，在对应的slot里面是写入符合条件的数据行的修改记录。
+Postgres的逻辑使用的是订阅发布模型。这个行级过滤器就是在发布端设置谓词，在对应的slot里面是写入符合条件的数据行的修改记录。
 
 其优势就是：
 
@@ -39,7 +39,7 @@ PG的逻辑使用的是订阅发布模型。这个行级过滤器就是在发布
 
 ### 准备一个小集群
 
-首先用Docker-Compose启动两个PG 15进程起来：
+首先用Docker-Compose启动两个Postgres 15进程起来：
 
 ```
 version: "3.3"
@@ -219,7 +219,7 @@ INSERT INTO employee (
 );
 ```
 
-这时，我们在pg1和pg2中查看employee表，发现所有数据在各自PG实例中都可以看得到。
+这时，我们在pg1和pg2中查看employee表，发现所有数据在各自Postgres实例中都可以看得到。
 
 ```
 postgres=# select * from employee;
@@ -241,9 +241,9 @@ postgres=# select * from employee;
 
 ### 总结
 
-在上面这个例子中，我们实现了一个简单的双主PG集群。数据表employee按照`company`字段分为两个shard。各自有两个replica，为一主一从模式。
+在上面这个例子中，我们实现了一个简单的双主Postgres集群。数据表employee按照`company`字段分为两个shard。各自有两个replica，为一主一从模式。
 
-而数据拆分后，实现了一个简单的三主集群。employee数据表按照`company`字段分为三个shard。各自有两个replica，为一主一从模式。按照需求，也可以实现每shard有3个replica，保证每一个PG实例都可以读取全表数据，而分担了写入压力。
+而数据拆分后，实现了一个简单的三主集群。employee数据表按照`company`字段分为三个shard。各自有两个replica，为一主一从模式。按照需求，也可以实现每shard有3个replica，保证每一个Postgres实例都可以读取全表数据，而分担写入压力。
 
 ## 参考资料
 
