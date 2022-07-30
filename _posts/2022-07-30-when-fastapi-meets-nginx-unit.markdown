@@ -5,7 +5,7 @@ date: 2022-07-30 12:22:14 +0800
 categories: 原创
 ---
 
-Python素来以慢而闻名。正所谓，“都用Python了，还在乎什么性能”。Djaongo、Flask无不以简单易用而著称，但却距离高性能很远。
+Python素来以慢而闻名。正所谓，“都用Python了，还在乎什么性能”。Django、Flask无不以简单易用而著称，但却距离高性能很远。
 
 Python自3.4版本加入了asyncio库以来，异步编程的生态得到了长足发展。Django基金会发布的ASGI协议，更是将异步HTTP服务器和上层的路由设施解耦开来。由此，高性能的C语言编写的服务器便得到了大施拳脚的空间。
 
@@ -23,6 +23,7 @@ Python自3.4版本加入了asyncio库以来，异步编程的生态得到了长�
 
 ```
 ➜ tree
+
 .
 ├── config
 │   └── config.json                            # Nginx Unit的应用配置
@@ -36,12 +37,12 @@ Python自3.4版本加入了asyncio库以来，异步编程的生态得到了长�
 ├── state                                      # 空文件夹，交给Nginx Unit使用
 └── tsinghua.mirror                            # 构建镜像使用的清华大学mirror
 
-4 directories, 9 files
+4 directories, 7 files
 ```
 
 #### Python代码
 
-```python
+```
 ➜ cat src/demo.py
 
 from fastapi import FastAPI
@@ -55,8 +56,9 @@ async def root():
 
 #### Nginx Unit配置文件
 
-```json
+```
 ➜ cat config/config.json
+
 {
     "listeners":{
         "*:80":{
@@ -76,7 +78,7 @@ async def root():
 
 #### 构建镜像
 
-```dockerfile
+```
 ➜ cat dockerfile
 
 FROM nginx/unit:1.27.0-python3.10
@@ -96,6 +98,7 @@ RUN apt update && apt install -y python3-pip                                    
 
 ```
 ➜ cat docker-compose.yml
+
 version: "3.3"
 services:
   app:
@@ -128,6 +131,7 @@ services:
 
 ```
 ➜  wrk git:(master) ✗ ./wrk -t2 -c20 -d10s --latency http://localhost:8080
+
 Running 10s test @ http://localhost:8080
   2 threads and 20 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
