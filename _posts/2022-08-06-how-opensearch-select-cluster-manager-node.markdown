@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "OpenSearch是怎样选取主节点的"
-date: 2022-08-06 16:52:14 +0800
+date: 2022-08-06 16:22:14 +0800
 categories: 原创
 ---
 
