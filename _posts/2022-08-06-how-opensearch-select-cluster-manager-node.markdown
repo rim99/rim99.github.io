@@ -73,7 +73,7 @@ private void handlePreVoteResponse(final PreVoteResponse response, final Discove
 1. 首先根据响应，不断调整当前所知道的最大term值。
 2. 当响应节点数量超过所有节点总数的一般时，也即满足quorum条件，即可开始触发`Coordinator`里的`startElection`开始选举。
 
-```
+```java
 private void startElection() {
     synchronized (mutex) {
         if (mode == Mode.CANDIDATE) {
