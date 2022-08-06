@@ -9,7 +9,7 @@ categories: 原创
 >
 > 延续ElasticSearch的主体架构，OpenSearch依然是一个分布式搜索引擎。整个分布式系统仍然需要一个主节点，来负责管理集群整体的状态。
 >
->本文将基于OpenSearch tag：2.1.0的代码（commitID：388c80ad945），简要介绍主节点的选举流程。
+> 本文将基于OpenSearch tag：2.1.0的代码（commitID：388c80ad945），简要介绍主节点的选举流程。
 
 ## 代码逻辑
 
