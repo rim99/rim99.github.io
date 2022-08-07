@@ -7,9 +7,9 @@ categories: 原创
 
 > OpenSearch是AWS在ElasticSearch 7.X的基础上开辟的分支。新分支延续了之前的Apache 2.0开源协议，并将独立演进，不再跟随ElasticSearch的节奏。
 >
-> 延续ElasticSearch的主体架构，OpenSearch依然是一个分布式搜索引擎。整个分布式系统仍然需要一个主节点，来负责管理集群整体的状态。
->
-> 本文将基于OpenSearch tag：2.1.0的代码（commitID：388c80ad945），简要介绍主节点的选举流程。
+> 本文将基于[OpenSearch的代码](https://github.com/opensearch-project/OpenSearch)，tag：`2.1.0`，commitID：`388c80ad945`，简要介绍主节点的选举流程。
+
+继承ElasticSearch的主体架构，OpenSearch依然是一个分布式搜索引擎。整个分布式系统仍然需要一个“主”节点，来负责管理集群整体的状态。这个“主”节点角色在OpenSearch中被称为`cluster manager`。而有资格的候选节点角色被称为`cluster manager eligible`.
 
 ## 代码逻辑
 
@@ -54,36 +54,29 @@ public void run() {
 
 ```java
 private void handlePreVoteResponse(final PreVoteResponse response, final DiscoveryNode sender) {
-    ...
     updateMaxTermSeen.accept(response.getCurrentTerm());
-    ...
-    preVotesReceived.forEach(
-        (node, preVoteResponse) -> voteCollection.addJoinVote(...)
+    preVotesReceived.forEach((node, preVoteResponse) -> 
+        voteCollection.addJoinVote(...)
     );
     if (electionStrategy.isElectionQuorum(...) == false) {
-        ...
         return;
     }
-    ...
     startElection.run();
 }
-
 ```
 
 1. 首先根据响应，不断调整当前所知道的最大term值。
-2. 当响应节点数量超过所有节点总数的一般时，也即满足quorum条件，即可开始触发`Coordinator`里的`startElection`开始选举。
+2. 当响应节点数量超过所有节点总数的一半时，也即满足quorum条件，即可开始触发`Coordinator`里的`startElection`开始选举。
 
 ```java
 private void startElection() {
     synchronized (mutex) {
         if (mode == Mode.CANDIDATE) {
             if (localNodeMayWinElection(getLastAcceptedState()) == false) {
-                ...
                 return;
             }
 
             final StartJoinRequest startJoinRequest = new StartJoinRequest(getLocalNode(), Math.max(getCurrentTerm(), maxTermSeen) + 1);
-            ...
             getDiscoveredNodes().forEach(node -> {
                 if (isZen1Node(node) == false) {
                     joinHelper.sendStartJoinRequest(startJoinRequest, node);
@@ -94,11 +87,11 @@ private void startElection() {
 }
 ```
 
-这一段逻辑很简单就是，将已知最大的term值加一，向已知所有节点发送`StartJoinRequest`请求。
+这一段逻辑很简单，就是：将已知最大的term值加一作为下一期的term值，向所有已知节点发送`StartJoinRequest`请求。
 
 **请求终于发送出去了，那么是怎么被处理的呢？**
 
-逻辑在这里`Coordinator`里的`processJoinRequest`方法里：
+逻辑在`Coordinator`的`processJoinRequest`方法里：
 
 ```java
 private void processJoinRequest(JoinRequest joinRequest, JoinHelper.JoinCallback joinCallback) {
@@ -119,7 +112,7 @@ private void processJoinRequest(JoinRequest joinRequest, JoinHelper.JoinCallback
 }
 ```
 
-其核心处理逻辑实现位于`optionalJoin.ifPresent(this::handleJoin)`。对比前后两次自选主请求是否成功，并在必要时调用`becomeLeader`调整自身状态，进入正式的`Cluster Manager`角色中。
+其核心处理逻辑位于`optionalJoin.ifPresent(this::handleJoin)`。对比处理请求前后两次参选请求是否成功，并在必要时调用`becomeLeader`调整自身状态，进入正式的`cluster manager`角色中。
 
 而`handleJoin`的内部实质上在调用`org.opensearch.cluster.coordination.CoordinationState`的`handleJoin`方法。
 
@@ -165,9 +158,9 @@ public boolean handleJoin(Join join) {
 
 尽管网上对OpenSearch的介绍寥寥无几，但是如果去搜索ElasticSearch的相关博客，大多都介绍说ES的选主流程基于Bully算法。然而Bully算法的核心选主逻辑是“依照候选节点的ID排序并选择最大的”。这一点在前面的代码中并没有体现出来。
 
-反而term、version、quorum这样的字眼不断的刺激着眼球，不禁使人联想到：这个算法更为接近**raft选主算法**。
+反而term、version、quorum这样的字眼不断的刺激着眼球，不禁使人联想到：这个算法更为接近**Raft算法**。
 
-ElasticSearch应该是对选主核心算法做过重大更新。
+ElasticSearch应该是对核心选主算法做过重大更新。
 
 ## 参考资料：
 
