@@ -125,7 +125,7 @@ services:
 
 ### 性能一瞥
 
-使用wrk简单的测试一下helloworld性能。CPU是AMD Ryzen 5800X，系统是Debian 11，内核版本5.10。
+使用wrk简单的测试一下hello-world性能。CPU是AMD Ryzen 5800X，系统是Debian 11，内核版本5.10。
 
 > 注意，Nginx Unit服务器默认使用1个线程处理请求，所以Python代码理应跑在单进程模式中。
 
