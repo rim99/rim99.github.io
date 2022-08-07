@@ -165,5 +165,6 @@ ElasticSearch应该是对核心选主算法做过重大更新。
 ## 参考资料：
 
 * [CS 551: Distributed Operating Systems - Bully Election Algorithm Example](https://www.cs.colostate.edu/~cs551/CourseNotes/Synchronization/BullyExample.html)
+* [The Raft Consensus Algorithm](https://raft.github.io/)
 * [Raft算法详解](https://zhuanlan.zhihu.com/p/32052223)
 
