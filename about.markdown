@@ -4,11 +4,11 @@ title: About Me
 permalink: /about/
 ---
 
-2016年起从事CI运维工程师。
+2016年起担任CI/CD工程师。
 
-2017年起从事服务器端应用开发工程师。
+2017年起担任服务器端应用开发工程师。
 
-2022年起从事OpenSearch on K8s工程师。
+2022年起担任OpenSearch工程师。
 
 工作中使用过的编程语言包括：
 - Java，2年
