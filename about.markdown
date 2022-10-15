@@ -6,9 +6,9 @@ permalink: /about/
 
 2016年起担任CI/CD工程师。
 
-2017年起担任服务器端应用开发工程师。
+2017年起担任Server应用开发工程师。
 
-2022年起担任OpenSearch工程师。
+2022年起担任Infrastructure工程师。
 
 工作中使用过的编程语言包括：
 - Java，2年
