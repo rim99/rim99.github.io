@@ -114,4 +114,5 @@ K8s首先打开计时器，将Pod标记为`Terminating`。
 
 * [Pod Lifecycle - Kubernetes](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/)
 * [Kubernetes API](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.25/)
+* [How to redirect PreStop hook output to pod logs](https://shyamjos.com/redirect-prestop-hook-logs/)
 * [Pod Ready++](https://github.com/kubernetes/enhancements/tree/master/keps/sig-network/580-pod-readiness-gates)
