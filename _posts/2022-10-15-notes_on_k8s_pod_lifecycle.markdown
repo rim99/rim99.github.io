@@ -5,11 +5,11 @@ date: 2022-10-15 12:08:14 +0800
 categories: 原创
 ---
 
-Pod是K8S的最小部署单元，其中运行着用户真正在意的服务。
+Pod是K8S的最小部署单元，其中运行着用户的服务。
 
-## Pod的状态
+## Pod Status
 
-在查看Pod的时候，我们可以看到Pod层面有一个`status`字段，其中定义了Pod的状态。
+在查看Pod的时候，我们可以看到Pod的属性中有一个`status`字段，其中定义了Pod的状态。
 
 状态      | 描述
 :-       | :-
@@ -21,7 +21,7 @@ Unknown  | 无法获取Pod状态
 
 ### Pod Condition
 
-Pod的Status还包括Condition字段。
+Pod的Status还包括`condition`字段。
 
 状态            | 描述
 :-             | :-
@@ -37,7 +37,7 @@ Pod处于Ready状态需要满足两点要求：
 
 ## Container
 
-Pod的状态和其中的Container关系非常密切。
+Pod的状态和其中的Container状态的关系非常密切。
 
 Container是Pod的内部组成部分。一个Pod中可以有多个Container。每一个Container都运行着一些进程。不同的Container可以基于不同的image运行。
 
@@ -51,7 +51,7 @@ Container可以在Pod的整个生命周期内持续运行。Pod可以定义Conta
 
 除此之外，还有一种init Container，只在Pod的创建初期顺序运行，运行完毕后直接关闭。只有当所有init Container运行完毕后，Container才会创建并运行。
 
-### Container的状态（Status）
+### Container Status
 
 状态         | 描述
 :-          | :-
@@ -65,8 +65,8 @@ Waiting     | 除上述以外的场景都有可能。例如正在拉取image等�
 
 探针类型有三种：
 * `livenessProbe`。如果该探针执行失败，Container就会被kubelet关闭。然后根据Pod的restartPolicy决定是否重启。
-* `readinessProbe`。如果该探针执行失败，Pod就会从相关的service的endpoint列表中清除，不再接受网络请求，直到探针成功。
-* `startupProbe`。如果该探针执行失败，Container就会被kubelet关闭。然后根据Pod的restartPolicy决定是否重启。在该探针执行成功之前，前述探针均保持失败。
+* `readinessProbe`。如果该探针执行失败，Pod就会从相关的Service的Endpoints列表中清除，不再接受网络请求，直到探针成功（P.S. 此时对外发送请求没有问题）。
+* `startupProbe`。如果该探针执行失败，Container就会被kubelet关闭。然后根据Pod的restartPolicy决定是否重启。在该探针执行成功之前，前述探针均保持关闭。
 
 当没有配置相应探针时，默认其为成功。
 
@@ -84,7 +84,7 @@ Hook的实现可以有两种：
 * shell命令。Shell命令在Container内部执行，会占用Container定义的Resource。
 * http GET请求。http请求由kubelet进程执行。
 
-K8s保证自定义hook至少执行一次。因此有可能执行多次。用户需要自行确保其幂等性。
+K8S保证自定义hook至少执行一次。因此有可能执行多次。用户需要自行确保其幂等性。
 
 #### 如何Debug Hook
 
@@ -96,17 +96,17 @@ K8S可以查看到hook执行失败的记录。例如`kubectl describe pod XXX`�
 
 优雅关闭对于网络服务的服务质量非常重要。
 
-Pod在接收到关闭请求之前会先尝试优雅关闭。同时计时，当达到时间限制之后，才会直接关闭。
+Pod在接收到关闭请求之前会先尝试优雅关闭，同时计时开始。当达到时间限制之后，Pod才会被直接关闭。
 
 例如当用户使用`kubectl`发送关闭指令。
 
-K8s首先打开计时器，将Pod标记为`Terminating`。
+K8S首先打开计时器，将Pod标记为`Terminating`。
 
-然后并行的关闭执行每一个Container：如果有prestop hook就先执行hook，然后向container发送`SIGTERM`信号给Container的主进程（pid为1）。
+然后并行的关闭执行每一个Container：如果有preStop hook就先执行hook，然后向container发送`SIGTERM`信号给Container的主进程（pid为1）。
 
-在Pod标记为`Terminating`的同时，也被移出了Service的Endpoints列表，不再会接收到外部请求。根据本人实测，此时从Container向Pod外请求也是失败的。
+Pod在被标记为`Terminating`的同时，也被移出了Service的Endpoints列表，不再会接收到外部请求。根据本人实测，此时从Container向Pod外请求也是失败的。
 
-如果在优雅关闭时限内，Pod没有完成关闭。其所有存活的Container内的所有进程都会接收到`SIGKILL`信号。kubelet也会要求API Server也会将Pod对象强制清理干净。API Server完成清理后，Pod不再可见。
+如果在优雅关闭时限内，Pod没有完成关闭。其所有存活的Container内的所有进程都会接收到`SIGKILL`信号。同时，kubelet会要求API Server将Pod对象强制清理干净。待API Server完成清理后，Pod不再可见。
 
 优雅关闭时间限制由Pod属性`terminationGracePeriodSeconds`来定义。
 
