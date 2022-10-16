@@ -202,3 +202,32 @@ hello'
 + echo output: '[generated' error 'hello]'
 output: [generated error hello]
 ```
+
+## 注意'与"的区别
+
+当引号内的内容是恒定字符串的时候，`'`与`"`并没有太大的区别。但是如果引号内的字符串需要插值的时候，`'`会失效。
+
+举个例子：
+
+```bash
+➜  cat demo.sh
+a="world"
+b="hello,$a"
+c='hello,$a'
+
+echo $b
+echo $c
+```
+
+执行一下看看：
+
+```bash
+➜ bash -x demo.sh
++ a=world
++ b=hello,world
++ c='hello,$a'
++ echo hello,world
+hello,world
++ echo 'hello,$a'
+hello,$a
+```
