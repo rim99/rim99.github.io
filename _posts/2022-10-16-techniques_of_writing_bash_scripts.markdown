@@ -30,7 +30,7 @@ f hello
 用`-x`参数执行一下
 
 ```bash
-➜  blog git:(master) ✗ bash -x demo.sh
+➜ bash -x demo.sh
 + f hello
 + echo using arg: hello
 using arg: hello
@@ -187,7 +187,7 @@ output: [hello]
 我们再修改一下`demo.sh`，把标准错误里的内容重定向到标准输出里来：
 
 ```bash
-➜  blog git:(master) ✗ cat demo.sh 
+➜  cat demo.sh
 output=$(bash help.sh 2>&1)
 echo output: [$output]
 ```
