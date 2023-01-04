@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "恢复误删的PV"
+title: "恢复误删的PVC"
 date: 2022-12-22 16:57:39 +0800
 categories: 原创
 ---
