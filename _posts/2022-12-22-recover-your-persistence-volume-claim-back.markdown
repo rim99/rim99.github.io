@@ -126,7 +126,7 @@ pv-test-2   1Gi        RWO            Retain           Available                
 pv-test     1Gi        RWO            Retain           Bound       default/pvc-test   manual                  5m13s
 ```
 
-在上述例子中，我们明确指定了要去绑定PV `pv-test`。所以结果是总是同样的。
+在上述例子中，我们指定了要去绑定PV `pv-test`,所以结果是明确的。
 
 ## 删除PVC
 
