@@ -97,9 +97,9 @@ pv-test     1Gi        RWO            Retain           Available           manua
 pv-test-2   1Gi        RWO            Retain           Available           manual                  3s
 ```
 
-此时如果新创建一个PVC依赖于隐式关联，那么其所绑定的PV是不明确的。
+此时如果新创建一个PVC依赖于隐式关联，那么其所绑定的PV是不确定的。
 
-那么我们创建一个指定了PV的PVC：
+此时，我们可以创建一个指定了PV的PVC：
 
 ```
 ➜  cat pvc2.yaml
@@ -126,7 +126,7 @@ pv-test-2   1Gi        RWO            Retain           Available                
 pv-test     1Gi        RWO            Retain           Bound       default/pvc-test   manual                  5m13s
 ```
 
-在上述例子中，我们明确指定了要去绑定PV `pv-test`。所以结果是明确的。
+在上述例子中，我们明确指定了要去绑定PV `pv-test`。所以结果是总是同样的。
 
 ## 删除PVC
 
@@ -141,13 +141,13 @@ pv-test   1Gi        RWO            Retain           Released   default/pvc-test
 PV的`STATUS`变成了`Released`，而`CLAIM`保持不变，尽管对应的PVC已经不存在了。
 
 删除PVC而能够保留PV。这一点其实收益于PV的`RECLAIM POLICY`。PV的`RECLAIM POLICY`，默认继承自StorageClass的配置，可以有三种值：
-1. Retain：默认值。删除PVC后保留PV，留待手动处理。
-2. Recycle：擦除原有资源，并准备再利用。
-3. Delete：删除PVC则会删掉对应的持久化资源，例如AWS EBS。
+1. `Retain`：默认值。删除PVC后保留PV，留待手动处理。
+2. `Recycle`：擦除原有资源，并准备再利用。
+3. `Delete`：删除PVC则会删掉对应的持久化资源，例如AWS EBS。
 
 ### 恢复误删的PVC
 
-假设我们误删了PVC，但PV还保留着，那如果想恢复PVC呢？
+假设我们误删了PVC，但PV还保留着，如果想恢复PVC呢？
 
 仅仅按照原来的配置直接创建PVC是不够的：
 
