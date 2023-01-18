@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "K3d的使用经验"
+title: "K3d的使用场景总结"
 date: 2023-01-18 17:10:13 +0800
 categories: 原创
 ---
@@ -54,9 +54,9 @@ MicroK8s是Canonical公司开发的K8s集群的边缘场景部署方案。本地
         "Networks": {
             "net-xxx": {
                 ...
-            } 
+            }
         }
-    }  
+    }
   }
 ]
 ```
@@ -71,11 +71,11 @@ docker run -d --name registry -p 5000:5000 --network net-xxx registry:latest
 
 当registry容器启动后，我们在K3d的容器节点中应当能够访问到hostname: `registry`。例如，`ping`或者`nslookup`等等。
 
-#### 配置Containerd
+#### 配置K3s agent容器
+
+> *目前，我还没有找到更好的方法实现配置持久化，暂时以hack的方式来实现*
 
 我们需要对K3s做一些配置以便从刚刚启动好的Registry中拉取镜像。
-
-*目前，我还没有找到很好的方法实现配置持久化，暂时以hack的方式来实现*
 
 在K3d的agent容器中的`/etc/rancher/k3s`目录下，放入这个文件
 
@@ -88,7 +88,7 @@ mirrors:
     - "http://registry:5000"
 ```
 
-要想让新配置生效需要**重启K3s的进程**。
+要想让新配置生效需要**重启K3s的agent进程**。
 
 #### 使用
 
@@ -103,17 +103,17 @@ Pod里面对域名的查找是通过集群的CoreDNS服务来查询的。所以�
 K8s的CoreDNS的域名记录可以通过修改其对应ConfigMap资源来实现。
 
 ```
-kubectl edit cm coredns -m kube-system 
+kubectl edit cm coredns -m kube-system
 ```
 
-修改里面的`NodeHosts`对象就可以了
+修改其中的`NodeHosts`对象就可以了
 
 ```
 NodeHosts: |
     172.24.0.1 example-svc
 ```
 
-*在这里我们需要IP地址`172.24.0.1`在K3s agent容器中能够联通*。
+当然，我们需要确定IP地址`172.24.0.1`在K3s agent容器中能够联通。
 
 然后重启CoreDNS服务
 
