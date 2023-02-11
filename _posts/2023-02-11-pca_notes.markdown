@@ -1,0 +1,1560 @@
+---
+layout: post
+title: "PCA笔记"
+date: 2023-02-11 09:39:22 +0800
+categories: 笔记
+---
+
+### 1. 何为PostgreSQL？
+
+PostgreSQL是以加州大学伯克利分校计算机系开发的POSTGRES， 版本 4.2为基础的对象关系型数据库管理系统（ORDBMS）。POSTGRES 领先的许多概念在很久以后才出现在一些商业数据库系统中。
+
+PostgreSQL是最初的伯克利代码的开源继承者。它支持大部分 SQL 标准并且提供了许多现代特性：
+
+    - 复杂查询
+    - 外键
+    - 触发器
+    - 可更新视图
+    - 事务完整性
+    - 多版本并发控制
+
+同样，PostgreSQL可以用许多方法扩展，比如， 通过增加新的：
+
+    - 数据类型
+    - 函数
+    - 操作符
+    - 聚集函数
+    - 索引方法
+    - 过程语言
+
+并且，因为自由宽松的许可证，任何人都可以以任何目的免费使用、修改和分发PostgreSQL， 不管是私用、商用还是学术研究目的。
+
+### 2. PostgreSQL可以由任何非特权用户安装， 不需要root的权限。
+### 3. 链接远程数据库服务器， 需要把PGHOST环境变量设置为数据库服务器，PGPORT也可能需要设置。
+### 4. PostgreSQL使用一种客户端/服务器（C/S）的模型。
+### 5. 一次PostgreSQL会话由下列相关的进程（程序）组成：
+
+   1. 一个服务器进程，它管理数据库文件、接受来自客户端应用与数据库的联接并且代表客户端在数据库上执行操作。 该数据库服务器程序叫做postgres。它为每个连接启动（“forks”）一个新的进程
+   2. 需要执行数据库操作的客户端（前端）应用。客户端和服务器可以在不同的主机上，通过 TCP/IP 网络联接通讯。
+
+### 6. createdb Q&A：
+
+    - Q: createdb: command not found
+      A: - PostgreSQL没有安装好
+         - 或者是根本没安装
+         - 或者是你的shell搜索路径没有设置正确
+
+    - Q: createdb: could not connect to database postgres: could not connect to server: No such file or directory
+        Is the server running locally and accepting
+        connections on Unix domain socket "/tmp/.s.PGSQL.5432"?
+      A: 该服务器没有启动，或者没有按照createdb预期地启动
+
+    - Q: createdb: could not connect to database postgres: FATAL:  role "joe" does not exist
+      A: 管理员没有为用户joe创建PostgreSQL用户帐号。或者需要使用-u选项或者环境变量PGUSER指定用户名
+
+    - Q: createdb: database creation failed: ERROR:  permission denied to create database
+      A: - 需要让站点管理员赋予你创建数据库的权限
+         - 以启动数据库服务器的用户身份登录然后参考手册完成权限的赋予工作
+
+### 7. dropdb：物理删除指定数据库的所有相关文件，且不可取消
+
+### 8. psql mydb：交互式终端，管理mydb数据库
+     - 提示符
+        - mydb=> 普通用户
+        - mydb=# 超级用户，不受访问控制的限制
+    - SELECT version();
+    - SELECT current_date;
+    - \h：获取各种PostgreSQL的SQL命令的帮助语法
+    - \q：退出
+    - \?：获取更多有关内部命令的信息
+    - \i：从指定的文件中读取命令
+    - psql的-s选项把你置于单步模式，它在向服务器发送每个语句之前暂停
+
+### 9. 关系型数据库管理系统 （RDBMS）
+ × 关系实际上是表的数学术语
+ 每个**表**都是一个命名的**行**集合。一个给定表的每一**行**由同一组的命名**列**组成，而且每一**列**都有一个特定的**数据类型**。虽然列在每行里的顺序是固定的， 但一定要记住 SQL 并不对行在表中的顺序做任何保证（但你可以为了显示的目的对它们进行显式地排序）。
+ **表**被分组成**数据库**，一个由单个PostgreSQL服务器实例管理的**数据库**集合组成一个**数据库集簇**
+
+ 数据库集簇 -> （命名）数据库 -> （命名）表 -> （命名）行 -> （命名）列（无序） - 数据类型
+
+### 10. SQL创建新表
+
+```sql
+CREATE TABLE weather (
+    city            varchar(80),
+    temp_lo         int,           -- 最低温度
+    temp_hi         int,           -- 最高温度
+    prcp            real,          -- 湿度
+    date            date
+);
+```
+
+SQL 是对关键字和标识符大小写不敏感的语言，只有在标识符用**双引号**包围时才能保留它们的大小写.
+可以定制任意数量的用户定义数据类型.
+
+### 11. 删除表 `DROP TABLE tablename;`
+
+### 12. 在表中增加行
+
+```
+INSERT INTO weather VALUES ('San Francisco', 46, 50, 0.25, '1994-11-27');
+```
+
+不是简单数字值的常量通常必需用单引号（'）包围
+
+明确地列出列
+```sql
+INSERT INTO weather (city, temp_lo, temp_hi, prcp, date)
+    VALUES ('San Francisco', 43, 57, 0.0, '1994-11-29');
+```
+
+使用COPY从文本文件中装载大量数据。这种方式通常更快
+
+```sql
+COPY weather FROM '/home/user/weather.txt';
+```
+
+### 13.  查询一个表
+
+```sql
+-- 指定列
+SELECT city, temp_lo, temp_hi, prcp, date FROM weather;
+
+-- AS子句是给输出列重新命名的（AS子句是可选的）
+SELECT city, (temp_hi+temp_lo)/2 AS temp_avg, date FROM weather;
+
+-- 消除重复的行
+SELECT DISTINCT city FROM weather;
+
+-- 返回的查询结果是排好序的
+SELECT * FROM weather ORDER BY city;
+```
+
+### 14. 表连接
+
+- 内连接：两表都有数据的行
+- 外连接：一张表有数据就行，另一表数据如果没有就输出空行
+- 左/右连接: 左/右表有数据就行，另一张表输出空行
+- CROSS JOIN: 笛卡尔积
+
+```sql
+SELECT a.m, a.n, b.p, b.q
+FROM A as a {INNER / OUTER / LEFT / RIGHT} JOIN B as b
+WHERE a.x = b.y
+```
+
+### 15. 聚集函数
+
+- count（计数）
+- sum（和）
+- avg（均值）
+- max（最大值）
+- min（最小值）
+
+```sql
+SELECT city FROM weather WHERE temp_lo = max(temp_lo);     -- 错误
+```
+
+```sql
+SELECT city FROM weather
+    WHERE temp_lo = (SELECT max(temp_lo) FROM weather);
+```
+
+```sql
+SELECT city, max(temp_lo)
+    FROM weather
+    GROUP BY city
+    HAVING max(temp_lo) < 40;
+```
+
+WHERE和HAVING的基本区别如下：
+- WHERE在分组和聚集计算之前选取输入行（因此，它控制哪些行进入聚集计算）。所以，WHERE子句不能包含聚集函数； 因为试图用聚集函数判断哪些行应输入给聚集运算是没有意义的
+- HAVING在分组和聚集之后选取分组行。相反，HAVING子句总是包含聚集函数（严格说来，你可以写不使用聚集的HAVING子句， 但这样做很少有用。同样的条件用在WHERE阶段会更有效）
+
+### 16. 更新
+```sql
+UPDATE weather
+    SET temp_hi = temp_hi - 2,  temp_lo = temp_lo - 2
+    WHERE date > '1994-11-28';
+```
+
+### 17. 删除
+
+```sql
+DELETE FROM weather WHERE city = 'Hayward';
+
+DELETE FROM tablename; -- 删除所有行，把表清空
+```
+
+### 18. 表基础
+
+关系型数据表由行和列组成。
+
+列的数量和顺序是稳定的，并且每一列拥有一个名字。
+行的数目是变化的，它反映了在一个给定时刻表中存储的数据量。
+SQL并不保证表中行的顺序。当一个表被读取时，表中的行将以非特定顺序出现，除非明确地指定需要排序。
+
+```sql
+CREATE TABLE my_first_table (
+    first_column text,
+    second_column integer
+);
+DROP TABLE my_first_table;
+DROP TABLE another_table IF EXISTS；-- 来防止出现错误消息，但这并非标准SQL
+```
+
+### 19. 默认值
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric DEFAULT 9.99 -- 值
+);
+
+CREATE TABLE products (
+    product_no      integer   DEFAULT nextval('products_product_no_seq'), -- 实时计算的表达式
+    product_no_b    SERIAL,
+    create_datetime timestamp DEFAULT CURRENT_TIMESTAMP, -- 写入行的时间
+    ...
+);
+```
+
+### 20. 生成列 - 总是从其他列计算而来
+
+生成列有两种:存储列和虚拟列。
+- 存储生成列在写入(插入或更新)时计算，并且像普通列一样占用存储空间。类似于物化视图(除了它总是自动更新之外）
+- 虚拟生成列不占用存储空间并且在读取时进行计算。类似于视图。PG没有实现
+
+```sql
+CREATE TABLE people (
+    ...,
+    height_cm numeric,
+    height_in numeric GENERATED ALWAYS AS (height_cm / 2.54) STORED -- 必须指定关键字 STORED 以选择存储类型的生成列
+);
+--  在INSERT 或 UPDATE 命令中, 不能为生成列指定值, 但是可以指定关键字DEFAULT。 
+```
+
+ 生成列和涉及生成列的表的定义有几个限制:
+
+- 生成表达式只能使用不可变函数，并且不能使用子查询或以任何方式引用当前行以外的任何内容。
+
+- 生成表达式不能引用另一个生成列。
+
+- 生成表达式不能引用系统表，除了 tableoid。
+
+- 生成列不能具有列默认或标识定义。
+
+- 生成列不能是分区键的一部分。
+
+- 外部表可以有生成列. 更多细节请参见 CREATE FOREIGN TABLE .
+
+- 对于继承:
+
+    - 如果父列是生成的列，则子列也必须也是使用相同的表达式生成的列。 在子列的定义中，不再使用GENERATED子句，因为它将从父列复制过来。
+
+    - 在进行多重继承的情况下，如果一个父列是生成的列，那么所有父列都必须是生成的列，并且具有相同的表达式。
+
+    - 如果父列不是生成的列，子列可以定义是否为生成的列。
+
+使用生成列的其他注意事项。
+
+- 生成列保留着有别于其下层的基础列的访问权限。因此，可以对其进行排列以便于从生成列中读取特定的角色，而不是从下层基础列。
+- 从概念上讲，生成列在BEFORE 触发器运行后更新。 因此，BEFORE 触发器中的基础列所做的变更将反映在生成列中。 但相反，不允许访问BEFORE 触发器中的生成列。
+
+### 21. 约束
+
+```sql
+CREATE TABLE products (
+    id bigint PRIMARY KEY， -- 主键约束，等价于 NOT NULL UNIQUE
+    product_no integer NOT NULL,  --非空约束
+    name text UNIQUE,             -- 唯一约束
+    price numeric CHECK (price > 0), -- 列约束
+    discounted_price numeric CONSTRAINT positive_price CHECK (discounted_price > 0), -- 具名约束
+    CHECK (price > discounted_price)， -- 表约束
+    UNIQUE(name)                       -- 表级唯一约束
+);
+```
+
+```sql
+CREATE TABLE t (
+    ...
+    PRIMARY KEY(a, b) -- 允许多个列同时做主键
+);
+```
+
+```sql
+CREATE TABLE orders (
+    ...
+    product_no integer REFERENCES products (product_no), -- 外键约束
+    ...
+    FOREIGN KEY (a, b) REFERENCES other_table (c1, c2) -- 复合外键约束
+);
+
+
+CREATE TABLE order_items (
+    name text REFERENCES orders ON UPDATE CASCADE,   -- 级联更新
+    product_no integer REFERENCES products ON DELETE RESTRICT, -- 限制删除
+    -- RESTRICT阻止删除一个被引用的行。
+    -- NO ACTION表示在约束被检查时如果有任何引用行存在，则会抛出一个错误
+
+    order_id integer REFERENCES orders ON DELETE CASCADE,  -- 级联删除
+    -- SET NULL和SET DEFAULT。这些将导致在被引用行被删除后，引用行中的引用列被置为空值或它们的默认值
+    quantity integer,
+    PRIMARY KEY (product_no, order_id)
+);
+```
+
+正常情况下，如果一个引用行的任意一个引用列都为空，则它不需要满足外键约束。
+
+如果在外键定义中加入了MATCH FULL，一个引用行只有在它的所有引用列为空时才不需要满足外键约束（因此空和非空值的混合肯定会导致MATCH FULL约束失败）。
+
+如果不希望引用行能够避开外键约束，将引用行声明为NOT NULL。
+
+外键所引用的列必须是一个主键或者被唯一约束所限制。
+
+**排他约束**
+
+排他约束保证如果将任何两行的指定列或表达式使用指定操作符进行比较，至少其中一个操作符比较将会返回否或空值。语法是：
+
+```sql
+CREATE TABLE circles (
+    c circle,
+    EXCLUDE USING gist (c WITH &&)
+);
+```
+
+增加一个排他约束将在约束声明所指定的类型上自动创建索引
+
+### 22. 每一个表都拥有一些由系统隐式定义的系统列（system columns）
+
+ - tableoid - 表的OID。该列是特别为从继承层次（见第 5.10 节）中选择的查询而准备，因为如果没有它将很难知道一行来自于哪个表。tableoid可以与pg_class的oid列进行连接来获得表的名称。
+ - xmin - 插入该行版本的事务身份（事务ID）_32位量_。一个行版本是一个行的一个特别版本，对一个逻辑行的每一次更新都将创建一个新的行版本。
+ - cmin - 插入事务中的命令标识符（从0开始）_32位量_。
+ - xmax - 删除事务的身份（事务ID）_32位量_，对于未删除的行版本为0。对于一个可见的行版本，该列值也可能为非零。这通常表示删除事务还没有提交，或者一个删除尝试被回滚。
+ - cmax - 删除事务中的命令标识符 _32位量_，或者为0。
+ - ctid - 行版本在其表中的物理位置。注意尽管ctid可以被用来非常快速地定位行版本，但是一个行的ctid会在被更新或者被VACUUM FULL移动时改变。因此，ctid不能作为一个长期行标识符。 应使用主键来标识逻辑行。
+
+分析：
+- min 插入行
+- max 删除行
+- x 事务ID：数据库一段时间内能够处理的事务数量上限
+- c 命令标识符：限制了一个事务中包含的SQL命令
+
+### 23. 修改表
+
+- 增加列：`ALTER TABLE products ADD COLUMN description text CHECK (description <> '');`
+- 移除列： `ALTER TABLE products DROP COLUMN description;`。如果该列被另一个表的外键所引用，PostgreSQL不会安静地移除该约束。我们可以通过增加CASCADE来授权移除任何依赖于被删除列的所有东西： `ALTER TABLE products DROP COLUMN description CASCADE;`
+- 增加约束：
+    ```sql
+    -- 增加表约束
+    ALTER TABLE products ADD CHECK (name <> '');
+    ALTER TABLE products ADD CONSTRAINT some_name UNIQUE (product_no);
+    ALTER TABLE products ADD FOREIGN KEY (product_group_id) REFERENCES product_groups;
+
+    -- 增加列约束
+    ALTER TABLE products ALTER COLUMN product_no SET NOT NULL;
+    ```
+- 移除约束：
+    ```sql
+    ALTER TABLE products DROP CONSTRAINT some_name; -- 如果是自动生成的约束，必须先查找其名字 （psql里: \d {table_name} ）
+    ALTER TABLE products ALTER COLUMN product_no DROP NOT NULL;
+    ```
+- 更改列的默认值:
+    ```sql
+    ALTER TABLE products ALTER COLUMN price SET DEFAULT 7.77;
+    ALTER TABLE products ALTER COLUMN price DROP DEFAULT; -- 等同于将默认值设置为空值
+    ```
+- 修改列的数据类型
+    ```sql
+    ALTER TABLE products ALTER COLUMN price TYPE numeric(10,2);
+    ```
+- 重命名列: `ALTER TABLE products RENAME COLUMN product_no TO product_number;`
+- 重命名表: `ALTER TABLE products RENAME TO items;`
+
+### 24. 权限
+
+所有者通常是执行创建语句的角色。对于大部分类型的对象，初始状态下只有所有者（或者超级用户）能够对该对象做任何事情。
+
+常见对象：表，序列，列，函数，数据库，模式（SCHEMA），表空间（tablespace），函数，过程
+
+PUBLIC的“角色”可以用来向系统中的每一个角色
+
+多种不同的权限：SELECT、INSERT、UPDATE、DELETE、TRUNCATE、REFERENCES、TRIGGER、CREATE、CONNECT、TEMPORARY(创建临时表)、EXECUTE(调用函数或过程)以及USAGE
+
+用ALL取代特定权限会把与对象类型相关的所有权限全部授权。
+
+
+重新分配所有者： `ALTER TABLE table_name OWNER TO new_owner;`
+
+分配权限：`GRANT {access} ON {obj} TO {role}`
+
+撤销以前授予的特权: `REVOKE ALL ON {obj} FROM PUBLIC;`
+
+### 25. 行安全性策略
+
+```sql
+ALTER TABLE ... ENABLE ROW LEVEL SECURITY;
+```
+
+具有BYPASSRLS属性的超级用户和角色在访问一个表时总是 可以绕过行安全性系统
+
+表拥有者通常也能绕过行安全性，不过可以选择用ALTER TABLE ... FORCE ROW LEVEL SECURITY来服从行安全性。
+
+```sql
+CREATE TABLE accounts (manager text, company text, contact_email text);
+
+ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY account_managers ON accounts TO managers USING (manager = current_user);
+```
+
+这一对策略将允许所有用户查看users表中的所有行，但只能修改他们自己的行：
+```sql
+CREATE POLICY user_sel_policy ON users
+    FOR SELECT
+    USING (true);
+CREATE POLICY user_mod_policy ON users
+    USING (user_name = current_user);
+```
+
+### 26. 模式
+
+一条数据库网络连接只能访问单个数据库的数据。
+
+数据库可以将表组织在不同的具名模式下，不同用户可以访问不同模式下的数据。
+
+```sql
+CREATE SCHEMA myschema;
+CREATE SCHEMA schema_name AUTHORIZATION user_name; -- 创建一个由其他人所拥有的模式
+
+CREATE TABLE myschema.mytable ( ... ); -- 更加通用的语法: database.schema.table
+
+DROP SCHEMA myschema; -- 删除一个为空的模式
+DROP SCHEMA myschema CASCADE; -- 删除一个模式以及其中包含的所有对象
+```
+
+指定任何模式名称: 自动的被放入一个名为“public”的模式中。
+
+```sql
+-- 一下两条SQL命令是等价的
+CREATE TABLE products ( ... );
+CREATE TABLE public.products ( ... );
+```
+
+模式搜索路径，不显式指定模式的时候默认的搜索路径（模式列表）
+
+```sql
+SHOW search_path;
+SET search_path TO myschema,public;
+```
+
+pg_catalog模式，它包含了系统表和所有内建的数据类型、函数以及操作符。总是搜索路径的一个有效部分。
+
+系统表名称以pg_开头，用户表最好还是避免使用这样的名称。
+
+安全的模式使用方案
+- 将普通用户约束在其私有的方案中。要实现这一点，执行REVOKE CREATE ON SCHEMA public FROM PUBLIC
+- 从默认搜索路径中删除公共模式，通过修改postgresql.conf或执行ALTER ROLE ALL SET search_path ="$user"。
+
+### 27. 表继承
+
+```sql
+CREATE TABLE cities (
+    name            text,
+    population      float,
+    elevation       int     -- in feet
+);
+
+CREATE TABLE capitals (
+    state           char(2)
+) INHERITS (cities);
+```
+
+子表可以自动得到父表定义的列。
+
+对父表执行select语句，可以覆盖子表，但只能得到父表定义的列。
+
+```sql
+SELECT name, elevation
+    FROM cities;      -- 默认包含子表
+
+SELECT name, elevation
+    FROM ONLY cities; -- 不包含子表
+
+SELECT name, elevation
+    FROM cities*; -- 必须包含子表
+```
+
+
+通过与pg_class进行连接可以看到实际的表名：
+```sql
+SELECT p.relname, c.name, c.elevation
+FROM cities c, pg_class p
+WHERE c.elevation > 500 AND c.tableoid = p.oid;
+```
+将会返回：
+```sql
+ relname  |   name    | elevation
+----------+-----------+-----------
+ cities   | Las Vegas |      2174
+ cities   | Mariposa  |      1953
+ capitals | Madison   |       845
+
+```
+
+INSERT语句不支持自动匹配子表。
+
+父表上的所有检查约束和非空约束都将自动被它的后代所继承，除非显式地指定了NO INHERIT子句。其他类型的约束（唯一、主键和外键约束）则不会被继承。因此不能阻止子表与父表之间违反约束，有别于分区表。
+
+ 一种创建一个未来将被用做子女的新表的方法是在CREATE TABLE中使用LIKE子句。这将创建一个和源表具有相同列的新表。如果源表上定义有任何CHECK约束，LIKE的INCLUDING CONSTRAINTS选项可以用来让新的子表也包含和父表相同的约束。
+
+当有任何一个子表存在时，父表不能被删除。当子表的列或者检查约束继承于父表时，它们也不能被删除或修改。
+
+继承的查询仅在父表上执行访问权限检查。
+
+### 28. 分区表
+
+将逻辑上的一个大表分成一些小的物理上的片。
+
+优势：
+1. 查询性能能够显著提升，特别是当那些访问压力大的行在一个分区或者少数几个分区时
+2. 查询或更新访问一个分区的大部分行时，可以通过该分区上的一个顺序扫描来取代分散到整个表上的索引和随机访问，这样可以改善性能。
+3. 批量装载和删除可以通过增加或者去除分区来完成。ALTER TABLE DETACH PARTITION或者使用DROP TABLE删除一个分区远快于批量操作。完全避免了批量DELETE导致的VACUUM开销
+4. 很少使用的数据可以被迁移到便宜且较慢的存储介质上。
+
+划分的方式：
+1. 范围划分：表被根据一个关键列或一组列划分为“范围”，不同的分区的范围之间没有重叠。例如，我们可以根据日期范围划分，或者根据特定业务对象的标识符划分。
+2. 列表划分：通过显式地列出每一个分区中出现的键值来划分表。
+3. 哈希分区：通过为每个分区指定模数和余数来对表进行分区。每个分区所持有的行都满足：分区键的值除以为其指定的模数将产生为其指定的余数。
+
+分区表的CHECK约束和NOT NULL约束总是会被其所有的分区所继承。不允许在分区表上创建标记为NO INHERIT的CHECK约束。
+
+分区表中无分区的时候可以用ONLY增删分区，否则会报错。分区上独有的约束可以无限制的增删。
+
+在分区表上使用TRUNCATE ONLY将总是返回错误，因为分区表自身不含数据。
+
+分区不能有在父表中不存在的列。只有当表的列正好匹配父表时，才能使用ALTER TABLE ... ATTACH PARTITION将它作为分区加入。
+
+```sql
+-- 分区表
+CREATE TABLE measurement (
+    city_id         int not null,
+    logdate         date not null,
+    peaktemp        int,
+    unitsales       int
+) PARTITION BY RANGE (logdate);
+
+-- 分区
+CREATE TABLE measurement_y2006m02 PARTITION OF measurement
+    FOR VALUES FROM ('2006-02-01') TO ('2006-03-01');
+
+-- 子分区表
+CREATE TABLE measurement_y2006m03 PARTITION OF measurement
+    FOR VALUES FROM ('2006-03-01') TO ('2006-04-01')
+    PARTITION BY RANGE (peaktemp);
+```
+
+```sql
+-- 删除掉不再需要的分区
+DROP TABLE measurement_y2006m02;
+
+--把分区从分区表中移除，但是保留它作为一个独立的表。允许在它被删除之前在其数据上执行进一步的操作，例如备份等。
+ALTER TABLE measurement DETACH PARTITION measurement_y2006m02;
+
+--先对数据进行装载、检查和转换，然后再让它们出现在分区表中
+-- 创建
+CREATE TABLE measurement_y2008m02
+  (LIKE measurement INCLUDING DEFAULTS INCLUDING CONSTRAINTS)
+  TABLESPACE fasttablespace;
+-- 检查
+ALTER TABLE measurement_y2008m02 ADD CONSTRAINT y2008m02
+   CHECK ( logdate >= DATE '2008-02-01' AND logdate < DATE '2008-03-01' );
+
+-- copy measurement_y2008m02 from 'measurement_y2008m02'
+-− possibly some other data preparation work
+
+-- 添加进分区表
+ALTER TABLE measurement ATTACH PARTITION measurement_y2008m02
+    FOR VALUES FROM ('2008-02-01') TO ('2008-03-01' );
+```
+
+在运行ATTACH PARTITION命令之前，推荐在要被挂接的表上创建一个CHECK约束来匹配期望的分区约束。 这样，系统将能够跳过扫描，否则需要验证隐式分区约束。 没有CHECK约束，将扫描表以验证分区约束，同时对该分区持有ACCESS EXCLUSIVE锁定，并在父表上持有SHARE UPDATE EXCLUSIVE锁。 在完成ATTACH PARTITION后，可能需要删除冗余CHECK约束
+
+分区表有下列限制：
+- 没有办法创建跨越所有分区的排除约束，只可能单个约束每个叶子分区。
+- 分区表上的惟一约束（也就是主键）必须包括所有分区键列。存在此限制是因为PostgreSQL只能每个分区中分别强制实施唯一性。
+- BEFORE ROW 触发器无法更改哪个分区是新行的最终目标。
+- 不允许在同一个分区树中混杂临时关系和持久关系。因此，如果分区表是持久的，则其分区也必须是持久的，反之亦然。在使用临时关系时，分区数的所有成员都必须来自于同一个会话。 
+
+使用表继承来实现分区表，这能够带来一些声明式分区不支持的特性：
+- 对声明式分区来说，分区必须具有和分区表正好相同的列集合，而在表继承中，子表可以有父表中没有出现过的额外列。
+- 表继承允许多继承。
+- 声明式分区仅支持范围、列表以及哈希分区，而表继承允许数据按照用户的选择来划分（不过注意，如果约束排除不能有效地剪枝子表，查询性能可能会很差）。
+- 在使用声明式分区时，一些操作比使用表继承时要求更长的持锁时间。例如，从分区表移除分区要求在父表上取得一个ACCESS EXCLUSIVE锁，而在常规继承的情况下一个SHARE UPDATE EXCLUSIVE锁就足够了。
+
+```sql
+-- 创建子表
+CREATE TABLE measurement_y2006m02 (
+    CHECK ( logdate >= DATE '2006-02-01' AND logdate < DATE '2006-03-01' )
+) INHERITS (measurement);
+-- 使用触发器实现insert，通常性能更好
+-- 使用主表规则也可以实现insert，但开销更大。这种开销是每个查询只有一次。而非每行。规则方法的另一个缺点是，如果规则集合无法覆盖插入日期，则没有简单的方法能够强制产生错误，数据将会无声无息地进入到主表中。
+```
+
+用继承实现的分区：
+
+- 没有自动的方法验证所有的CHECK约束之间是否互斥。编写代码来产生子表以及创建和修改相关对象比手写命令要更加安全。
+
+- 索引和外键约束适用于单个表而不是其继承子级，因此它们有一些caveats 需要注意。
+
+- 这里展示的模式假定行的键列值从不改变，或者说改变不足以让行移动到另一个分区。由于CHECK约束的存在，尝试那样做的UPDATE将会失败。如果需要处理那种情况，可以在子表上放置适当的更新触发器，但是那会使对结构的管理更加复杂。
+
+- 如果使用手工的VACUUM或者ANALYZE命令，不要忘记需要在每个子表上单独运行它们。这样的命令：`ANALYZE measurement;`将只会处理主表。
+
+- 带有ON CONFLICT子句的INSERT语句不太可能按照预期工作，因为只有在指定的目标关系而不是其子关系上发生唯一违背时才会采取ON CONFLICT行动。
+
+- 将会需要触发器或者规则将行路由到想要的子表中，除非应用明确地知道分区的模式。编写触发器可能会很复杂，并且会比声明式分区在内部执行的元组路由慢很多。
+
+**分区剪枝**是一种提升声明式分区表性能的查询优化技术
+
+```sql
+SET enable_partition_pruning = on;
+```
+
+如果没有分区剪枝，上面的查询将会扫描measurement表的每一个分区。如果启用了分区剪枝，规划器将会检查每个分区的定义并且检验该分区是否因为不包含符合查询WHERE子句的行而无需扫描。
+
+分区剪枝仅由分区键隐式定义的约束所驱动，而不是由索引的存在驱动。因此，没有必要在键列上定义索引。
+
+分区剪枝在查询的规划期和执行期间都能执行。
+
+**约束排除**以非常类似于分区剪枝的方式工作，不过它使用每个表的CHECK约束。分区剪枝使用表的分区边界。约束排除仅在规划时应用。
+
+只有查询的WHERE子句包含常量（或者外部提供的参数）时，约束排除才能有效果。例如，针对CURRENT_TIMESTAMP）的比较不能被优化
+
+保持分区约束简单化，否则规划器可能无法验证哪些子表可能不需要被访问。一种好的经验规则是分区约束应该仅包含分区列与常量使用B-树的可索引操作符的比较，因为只有B-树的可索引列才允许出现在分区键中。
+
+约束排除期间会检查父表的所有子表上的所有约束，因此大量的子表很可能明显地增加查询规划时间。
+
+### 29. 声明分区最佳实践
+
+最重要的设计决策之一是选择对数据进行分区的列或者列的组合。 通常最佳选择是按最常出现在分区表上执行的查询的 WHERE子句中的列或列集合进行分区。 与分区键匹配并兼容的WHERE子句项可用于裁剪不需要的分区。 但是，你可能会被迫根据PRIMARY KEY或UNIQUE约束的要求做出其他决策。 在规划分区策略时，删除不需要的数据也是需要考虑的一个因素。 可以相当快地分离整个分区，因此采用这样方式设计分区策略可能是有益的，既把一次删除的所有数据都放在单个分区中。
+
+选择表应该划分的分区的目标数量也是一个重要的决策。 没有足够的分区可能意味着索引仍然太大，数据位置仍然较差，这可能导致缓存命中率很低。 但是，将表划分为太多的分区也会导致问题。 在查询规划和执行期间，过多的分区可能意味着查询计划时间较长，内存消耗也更高。 在选择如何划分表时，考虑将来可能发生的更改也很重要。 例如，如果您选择为每个客户提供一个分区，而您目前只有少量的大客户，那么，如果几年后您发现自己有大量的小客户，那么就要考虑这种影响。 在这种情况下，最好选择按HASH分区并且选择合理数量的分区，而不是尝试按 LIST 进行分区，并希望客户数量的增长不会超出按数据分区的实际范围。
+
+子分区可用于进一步划分预期会比其他分区更大的分区，尽管过多的子分区很容易导致大量分区，并可能导致前一段中提到的相同问题。
+
+考虑查询计划和执行期间的分区开销也很重要。 查询规划器通常能够很好地处理多达几千个分区的分区层次结构，前提是典型的查询允许查询规划器裁剪除了少量分区之外的所有分区。 规划器执行分区修剪后保留更多分区时，规划时间会变长，内存消耗会更高。对于UPDATE 和 DELETE命令尤其如此。 担心拥有大量分区的另一个原因是，服务器的内存消耗可能会在一段时间内显著增加，特别是如果许多会话接触大量分区。 这是因为每个分区都需要将其元数据加载到接触它的每个会话的本地内存中。
+
+对于数据仓库类型工作负载，使用比 OLTP 类型工作负载更多的分区数量很有意义。 通常，在数据仓库中，查询计划时间不太值得关注，因为大多数处理时间都花在查询执行期间。 对于这两种类型的工作负载，尽早做出正确的决策非常重要，因为重新分区大量数据可能会非常缓慢。 模拟预期工作负载通常有利于优化分区策略。永远不要假设更多的分区比更少的分区更好，反之亦然。
+
+### 30. 其他数据库对象
+
+- 表
+- 视图
+- 函数、过程和操作符
+- 数据类型和域
+- 触发器和重写规则
+
+### 31. 插入数据
+
+```sql
+INSERT INTO products VALUES (1, 'Cheese', 9.99);
+INSERT INTO products (product_no, name, price) VALUES (1, 'Cheese', 9.99);
+```
+
+### 32. 更新数据
+
+```sql
+UPDATE products SET price = 10 WHERE price = 5;
+UPDATE mytable SET a = 5, b = 3, c = 1 WHERE a > 0;
+```
+
+### 33. 删除数据
+
+```sql
+DELETE FROM products WHERE price = 10;
+DELETE FROM products; -- all of rows
+```
+
+### 34. 从修改的行中返回数据
+
+```sql
+INSERT INTO users (firstname, lastname) VALUES ('Joe', 'Cool')
+    RETURNING id;
+
+UPDATE products SET price = price * 1.10 WHERE price <= 99.99
+    RETURNING name, price AS new_price;
+
+DELETE FROM products WHERE obsoletion_date = 'today'
+    RETURNING *;
+```
+
+### 35. 查询
+
+子查询也可以是一个VALUES列表：
+
+```sql
+FROM (VALUES ('anne', 'smith'), ('bob', 'jones'), ('joe', 'blow'))
+  AS names(first, last)
+```
+
+LATERAL子查询：允许子查询引用前面的FROM项提供的列
+
+```sql
+SELECT * FROM foo, LATERAL (SELECT * FROM bar WHERE bar.id = foo.bar_id) ss;
+```
+
+在通过了WHERE过滤器之后，生成的输入表可以使用GROUP BY子句进行分组，然后用HAVING子句删除一些分组行。
+- GROUP BY子句被用来把表中在所列出的列上具有相同值的行分组在一起。
+- 用HAVING子句，它很象WHERE子句，用于从结果中删除一些组
+
+```sql
+ SELECT x, sum(y) FROM test1 GROUP BY x HAVING sum(y) > 3;
+```
+
+分组集（GROUPING SETS）：对每一个分组计算聚集，然后返回结果
+```sql
+=> SELECT brand, size, sum(sales) FROM items_sold GROUP BY GROUPING SETS ((brand), (size), ());
+ brand | size | sum
+-------+------+-----
+ Foo   |      |  30
+ Bar   |      |  20
+       | L    |  15
+       | M    |  35
+       |      |  50
+(5 rows)
+```
+
+```sql
+ROLLUP ( e1, e2, e3, ... )
+
+<=>
+
+GROUPING SETS (
+    ( e1, e2, e3, ... ),
+    ...
+    ( e1, e2 ),
+    ( e1 ),
+    ( )
+)
+```
+
+```sql
+CUBE ( a, b, c )
+
+<=>
+
+GROUPING SETS (
+    ( a, b, c ),
+    ( a, b    ),
+    ( a,    c ),
+    ( a       ),
+    (    b, c ),
+    (    b    ),
+    (       c ),
+    (         )
+)
+```
+
+```sql
+CUBE ( (a, b), (c, d) )
+
+<=>
+
+GROUPING SETS (
+    ( a, b, c, d ),
+    ( a, b       ),
+    (       c, d ),
+    (            )
+)
+```
+
+```sql
+ROLLUP ( a, (b, c), d )
+
+<=>
+
+GROUPING SETS (
+    ( a, b, c, d ),
+    ( a, b, c    ),
+    ( a          ),
+    (            )
+)
+```
+
+如果有多个分组项，那么最终的分组集列表是这些项的叉积
+
+```sql
+GROUP BY a, CUBE (b, c), GROUPING SETS ((d), (e))
+
+<=>
+
+GROUP BY GROUPING SETS (
+    (a, b, c, d), (a, b, c, e),
+    (a, b, d),    (a, b, e),
+    (a, c, d),    (a, c, e),
+    (a, d),       (a, e)
+)
+```
+
+ROLLUP用于有层级递进关系的列
+例如，按国家、省市的关系求去利润综合
+```sql
+SELECT sum(profit)，country, province, city from a_table GROUP BY ROLLUP(country, province, city);
+
+sum(profit) | country | province | city
+------------+---------+----------+-----
+200         | CN      | SHAANXI  | XIAN
+130         | CN      | SHAANXI  | YANAN
+330         | CN      | SHAANXI  |
+260         | CN      | SICHUAN  | CHENGDU
+190         | CN      | SICHUAN  | MIANYANG
+450         | CN      | SICHUAN  |
+```
+
+CUBE用于平级关系的列
+例如，按省和部门分别分析成本
+```sql
+SELECT sum(cost), province, department from a_table GROUP BY CUBE(province, department);
+
+sum(cost) | province | department
+----------+----------+----------------
+90        | SICHUAN       | IT
+110       | SHAANXI       | IT
+160       | SICHUAN       | PRODUCT
+150       | SHAANXI       | PRODUCT
+250       | SICHUAN       |
+260       | SHAANXI       |
+200       |               | IT
+310       |               | PRODUCT
+```
+
+DISTINCT ON处理是发生在ORDER BY排序后面的.
+
+两个查询的结果可以用集合操作并、交、差进行组合。语法是
+```
+query1 UNION [ALL] query2
+query1 INTERSECT [ALL] query2
+query1 EXCEPT [ALL] query2
+```
+
+- UNION有效地把query2的结果附加到query1的结果上（不过我们不能保证这就是这些行实际被返回的顺序）。此外，它将删除结果中所有重复的行， 就象DISTINCT做的那样，除非你使用了UNION ALL。
+- INTERSECT返回那些同时存在于query1和query2的结果中的行，除非声明了INTERSECT ALL， 否则所有重复行都被消除。
+- EXCEPT返回所有在query1的结果中但是不在query2的结果中的行（有时侯这叫做两个查询的差）。同样的，除非声明了EXCEPT ALL，否则所有重复行都被消除。
+(自动去重除非加ALL)
+
+ORDER BY （默认ASC升序）：NULLS FIRST和NULLS LAST选项将可以被用来决定在排序顺序中，空值是出现在非空值之前或者出现在非空值之后。默认情况下，排序时NULL更大。
+
+LIMIT ALL的效果和省略LIMIT子句一样。OFFSET 0的效果和省略OFFSET子句是一样的。
+LIMIT NULL的效果和省略LIMIT子句一样。
+
+如果OFFSET和LIMIT都出现了， 那么在返回LIMIT个行之前要先忽略OFFSET行。
+
+SQL 没有许诺把查询的结果按照任何特定的顺序发出，除非用了ORDER BY来约束顺序。
+
+被OFFSET子句忽略的行仍然需要在服务器内部计算；因此，一个很大的OFFSET的效率可能还是不够高。
+
+VALUES提供了一种生成“常量表”的方法，它可以被使用在一个查询中而不需要实际在磁盘上创建一个表。
+```sql
+SELECT * FROM (VALUES (1, 'one'), (2, 'two'), (3, 'three')) AS t (num,letter);
+```
+
+WITH查询（公共表表达式，CTE）
+
+WITH中SELECT的基本价值是将复杂的查询分解称为简单的部分
+```sql
+WITH regional_sales AS (
+    SELECT region, SUM(amount) AS total_sales
+    FROM orders
+    GROUP BY region
+), top_regions AS (
+    SELECT region
+    FROM regional_sales
+    WHERE total_sales > (SELECT SUM(total_sales)/10 FROM regional_sales)
+)
+SELECT region,
+       product,
+       SUM(quantity) AS product_units,
+       SUM(amount) AS product_sales
+FROM orders
+WHERE region IN (SELECT region FROM top_regions)
+GROUP BY region, product;
+```
+
+通过使用RECURSIVE，一个WITH查询可以引用它自己的输出。
+```sql
+WITH RECURSIVE t(n) AS (
+    VALUES (1)
+  UNION ALL    -- UNION 抛弃重复行和之前计算结果，UNION ALL包含所有计算结果
+    SELECT n+1 FROM t WHERE n < 100
+)
+SELECT sum(n) FROM t;
+```
+
+### 36. 数字
+
+名字	  |   存储尺寸 (字节)	| 范围
+:-:      | :-:    | :-:
+smallint |	2	|	-32768 to +32767
+integer	  |  4	|	-2147483648 to +2147483647
+bigint	  |  8 |	-9223372036854775808 to +9223372036854775807
+decimal	  |   可变	|	最高小数点前131072位，以及小数点后16383位
+numeric	  |  可变	|	最高小数点前131072位，以及小数点后16383位
+real	  |  4	|	6位十进制精度
+double precision | 8	|	15位十进制精度
+smallserial	| 2	|	1到32767
+serial	    | 4	|	1到2147483647
+bigserial	| 8	|	1到9223372036854775807
+
+int2 int4 int8
+
+NUMERIC(precision, scale)：
+- precision（精度）是整个数中有效位的总数，也就是小数点两边的位数
+- numeric的scale（小数位数）是小数部分的数字位数，也就是小数点右边的部分
+
+
+Infinity
+-Infinity
+NaN：“not-a-number”
+在 SQL 命令里把这些数值当作常量写，你必须在它们周围放上单引号 `UPDATE table SET x = '-Infinity'`
+
+float(p)用于声明非精确的数字类型。在这里，p指定以二进制位表示的最低可接受精度
+real => float(1) .. float(24)
+double precision => float(25) .. float(53)
+
+
+```sql
+CREATE TABLE tablename (
+    colname SERIAL
+);
+
+<=>
+
+CREATE SEQUENCE tablename_colname_seq AS integer;
+CREATE TABLE tablename (
+    colname integer NOT NULL DEFAULT nextval('tablename_colname_seq')
+);
+ALTER SEQUENCE tablename_colname_seq OWNED BY tablename.colname;
+```
+
+逻辑操作符：AND OR NOT
+比较操作符： >, <, >=, <=, =, !=, <>,
+
+BETWEEN           a AND b (包括端点)
+BETWEEN SYMMETRIC a AND b (不要求a<=b)
+a IS DISTINCT FROM b      (不等，将null是为可比较值)
+ISNULL / IS NULL          (不为NULL)
+
+函数num_nonnulls 返回非空参数的数量。 num_nonnulls (1, NULL, 2)  → 2
+函数num_nulls    返回空参数的数量。   num_nulls    (1, NULL, 2)  → 1
+
+数字操作符：
+```
++
+-
+*
+/
+%   取余
+^   指数
+|/  平方根
+||/ 立方根
+@   绝对值
+&  与
+|  或
+#  异或
+~  求反
+<< 左移
+>> 右移
+```
+
+### 37. 货币类型
+
+money类型存储固定小数精度的货币数字，小数的精度由数据库的lc_monetary设置决定。
+numeric、int和bigint的值可以被造型成money。
+浮点数不应该被用来处理货币，因为浮点数可能会有圆整错误。
+
+### 38. 字符类型
+
+名字                              |	描述
+:-:                              |  :-:
+character varying(n), varchar(n) |	有限制的变长
+character(n), char(n)	         | 定长，空格填充
+text	                         | 无限变长
+
+存储更长的串会被截断
+存储更短的串：
+- varchar(n)： 原样存储
+- char(n)：用空白补满
+
+字符串比较的时候，应确保：
+1. 使用相同的collate设置
+2. 在varchar和text类型中，末尾的空白有实际意义，可能导致比较结果的异常
+
+text || text / 非数组的其他类型 ： 连接字符串
+
+NOT (string LIKE pattern)）
+string {NOT} SIMILAR TO pattern [ESCAPE escape-character]
+
+
+
+### 39. 二进制类型
+
+bytea	1或4字节外加真正的二进制串	变长二进制串
+
+* 十六进制格式 - 将二进制数据编码为每个字节2个十六进制位，最高有效位在前。整个串以序列\x开头
+* 转义格式 - `abc \153\154\155 \052\251\124'::bytea;`。三位八进制值， 并且前导一个反斜线
+
+decode ( string text, format text ) → bytea
+format可以是 base64 hex escape
+
+### 40. 时间日期类型
+
+名字	| 存储尺寸 |	描述	| 最小值	| 最大值	| 解析度
+:-:     | :-:    |  :-:      | :-:      | :-:      | :-:
+timestamp [ (p) ] [ without time zone ] |	8字节	| 包括日期和时间（无时区）	| 4713 BC |	294276 AD |	1微秒
+timestamp [ (p) ] with time zone	    | 8字节	    | 包括日期和时间，有时区	| 4713 BC |	294276 AD |	1微秒
+date	                                | 4字节	    | 日期（没有一天中的时间）	| 4713 BC |	5874897 AD |	1日
+time [ (p) ] [ without time zone ]	    | 8字节	    | 一天中的时间（无日期）	| 00:00:00 | 24:00:00 |	1微秒
+time [ (p) ] with time zone	            | 12字节	| 仅仅是一天中的时间（没有日期），带有时区	| 00:00:00+1459	 | 24:00:00-1459 |	1微秒
+interval [ fields ] [ (p) ]	            | 16字节	| 时间间隔	| -178000000年	| 178000000年 |	1微秒
+
+### 41. 布尔类型boolean 1字节 true false unknown
+
+### 42. 枚举类型
+
+```sql
+CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
+```
+
+大小写敏感。
+
+可以增加新值，重命名值，但不可以删除值。
+
+一个枚举值在磁盘上占据4个字节。一个枚举值的文本标签的长度受限于NAMEDATALEN设置，标准编译时，为63字节。
+
+### 43. 集合类型
+
+```
+point   点
+line    线
+lseg    线段
+box     矩形框
+path    路径
+polygon 多边形
+circle  圆
+```
+
+### 44. 网络地址类型
+
+cidr / inet  7或19 字节   192.168.0.0/24
+macaddr      6     字节
+macaddr8     8     字节
+
+inet和cidr类型之间的本质区别是inet接受右边有非零位的网络掩码， 而cidr不接受。也就是说，cidr的address是对应区间的最小IP地址。inet更为灵活
+
+inet_a <<  inet_b → boolean a是否严格包含b
+inet_a <<= inet_b → boolean a是否   包含b
+inet_a >>  inet_b → boolean a是否严格包含于b中
+...
+inet_a &&  inet_b → boolean a和b是否有交集
+
+### 45. 位串
+
+bit(n) 要求数据必须精确匹配位数
+bit varying(n) 可以存更小的，会拒绝更大的
+
+### 46. 全文搜索
+
+* tsvector - 处理后的利于搜索的文档类型
+* tsquery  - 查询条件的表达式类型
+    - 如果没有圆括号，!（NOT）的优先级最高，其次是<->（FOLLOWED BY），然后是&（AND），最后是|（OR）。
+    - *来指定前缀匹配 - `'super:*'::tsquery`：以“super”开头的任意词
+
+```sql
+SELECT to_tsvector( 'postgraduate' ) @@ to_tsquery( 'postgres:*' ); -- @@ 前后的对象交换顺序不影响查询结果
+```
+
+### 47. uuid类型
+
+gen_random_uuid () → uuid -- UUID4 随机
+
+### 48. XML类型
+### 49. JSON类型
+- json数据类型存储输入文本的精准拷贝，处理函数必须在每 次执行时必须重新解析该数据
+- jsonb数据，存储的是解析后的二进制格式。它在输入时要慢一些，jsonb在处理时要快很多，支持索引
+
+测试JSON的**包含**行为 `@>`：右边是否在左边之中，仅检查root层级。
+```sql
+-- 数组元素的顺序没有意义，因此这个例子也返回真：
+SELECT '[1, 2, 3]'::jsonb @> '[3, 1]'::jsonb;
+
+-- 右边具有一个单一键值对的对象被包含在左边的对象中：
+SELECT '{"product": "PostgreSQL", "version": 9.4, "jsonb": true}'::jsonb @> '{"version": 9.4}'::jsonb;
+
+-- 类似的，这个例子也不会被认为是包含：
+SELECT '{"foo": {"bar": "baz"}}'::jsonb @> '{"bar": "baz"}'::jsonb;  -- 得到假
+```
+
+测试JSON的**存在**行为 `?`: 右边是否出现在左边
+```sql
+-- 字符串作为一个数组元素存在：
+SELECT '["foo", "bar", "baz"]'::jsonb ? 'bar';
+
+-- 字符串作为一个对象键存在：
+SELECT '{"foo": "bar"}'::jsonb ? 'foo';
+
+-- 不考虑对象值：
+SELECT '{"foo": "bar"}'::jsonb ? 'bar';  -- 得到假
+
+-- 和包含一样，存在必须在顶层匹配：
+SELECT '{"foo": {"bar": "baz"}}'::jsonb ? 'bar'; -- 得到假
+
+-- 如果一个字符串匹配一个基本 JSON 字符串，它就被认为存在：
+SELECT '"foo"'::jsonb ? 'foo';
+```
+
+jsonb的默认 GIN 操作符类支持使用@>、 ?、?&以及?|操作符的查询
+非默认的 GIN 操作符类jsonb_path_ops只支持索引 @>操作符
+
+**json path 表达式**
+
+```json
+{
+  "track": {
+    "segments": [
+      {
+        "location":   [ 47.763, 13.4034 ],
+        "start time": "2018-10-14 10:05:14",
+        "HR": 73
+      },
+      {
+        "location":   [ 47.706, 13.2635 ],
+        "start time": "2018-10-14 10:39:21",
+        "HR": 135
+      }
+    ]
+  }
+}
+```
+
+```sql
+$.track.segments[*] ? (@.location[1] < 13.4) ? (@.HR > 130)."start time"
+--  对track里segments列表的元素执行两个过滤器，并取出对应的start time
+```
+
+- $ json原结构体
+- ？过滤器
+- @ 当前计算到的结果
+
+### 49. 数组
+
+允许定义数组的大小，但不会强制。
+
+```sql
+CREATE TABLE sal_emp (
+    name            text,
+    pay_by_quarter  integer[],
+    schedule        text[][]，
+    squares         integer[3][3]，
+    pay_by_quarter  integer ARRAY[4]
+);
+
+-- 使用 {} 表示一个数组
+INSERT INTO sal_emp
+    VALUES ('Bill',
+    '{10000, 10000, 10000, 10000}',
+    '{ {"meeting", "lunch"}, {"training", "presentation"} }');
+
+-- 使用切片语法表示上下界，也可以用一个数字作为数组索引
+SELECT schedule[1:2][1:1] FROM sal_emp WHERE name = 'Bill';
+```
+
+### 50. 组合类型
+
+相当与一个结构体，可以包含多个值
+
+```sql
+CREATE TYPE complex AS (
+    r       double precision,
+    i       double precision
+);
+-- 点语法取内部值
+SELECT c.name FROM inventory_item c WHERE c.price > 1000;
+-- 函数语法取内部值
+SELECT name(c) FROM inventory_item c WHERE price(c) > 1000;
+```
+
+### 51. 范围类型
+- int4range — integer的范围
+- int8range — bigint的范围
+- numrange — numeric的范围
+- tsrange — 不带时区的 timestamp的范围
+- tstzrange — 带时区的 timestamp的范围
+- daterange — date的范围
+
+### 52. 域类型
+
+用户自定义的类型，通常是其他普通类型的一部分
+
+```sql
+CREATE DOMAIN positiveint AS integer CHECK (VALUE > 0);
+```
+
+### 53. 对象标识符类型
+
+对象标识符（OID）被PostgreSQL用来在内部作为多个系统表的主键
+
+### 54. pg_lsn数据类型可以被用来存储 LSN（日志序列号）数据，LSN 是一个指向WAL中的位置的指针。64位整数
+
+### 55. 伪类型
+
+### 56. 条件表达式
+
+```sql
+CASE WHEN condition THEN result
+     [WHEN ...]
+     [ELSE result]
+END
+
+COALESCE(value [, ...]) -- 返回它的第一个非空参数的值。当且仅当所有参数都为空时才会返回空
+
+NULLIF(value1, value2) -- 当value1和value2相等时，NULLIF返回一个空值。 否则它返回value1。
+
+GREATEST(value [, ...])
+LEAST(value [, ...])
+```
+
+### 57. 窗口函数 & 聚集函数
+
+- 窗口函数会将结果集进行分组合并输出一行，是将计算的结果合并到基于结果集运算的列上
+- 聚合函数将结果集进行计算并且通常返回一行
+
+聚合函数只有在调用之后有一个OVER子句时才作为窗口函数;否则，它们充当普通的聚合，并为整个集合返回一行。
+
+```sql
+SELECT product_id, product_name, sale_price, SUM (sale_price) OVER (ORDER BY product_id) AS current_sum FROM Product;
+```
+
+### 58. 子查询表达式
+
+```sql
+EXISTS (subquery) -- 如果subquery至少返回一行为true，否则false
+
+expression IN (subquery)   -- 子查询必须正好只返回一个列，左边应至少有一个表达式是匹配的；如果子查询没有返回，或没有相等行，为false；如果子查询不为NULL，没有匹配的而且至少返回一个NULL，或左边返回NULL，那就返回NULL
+row_constructor IN (subquery) -- 必须完全一样
+
+-- SOME <=> ANY
+-- 右边必须之返回一个列，如果有一个表达式为true，则为true；如果没有true，就是false；如果表达式有一个NULL且没有true，那就是NULL。
+expression operator ANY (subquery)
+expression operator SOME (subquery)
+
+
+expression operator ALL (subquery) -- 只有全部为true，才是true；有一个false，那就是false；如果没有false，而且存在一个NULL，那就是NULL
+```
+
+### 59. 行与数组比较
+
+```sql
+expression IN (value [, ...])
+expression NOT IN (value [, ...])
+expression SOME (value [, ...])
+expression ANY (value [, ...])
+expression ALL (value [, ...]) -- 表达式满足右边数组中的每一个值
+```
+
+### 60. 类型转换
+
+PostgreSQL扫描器/解析器只将词法元素分解成五个基本种类：整数、非整数数字、字符串、标识符、关键字。
+
+有两个文字常量，类型分别为text和point。如果一个串文字没有指定类型，初始将被分配一个占位符类型unknown。
+
+四种基本的SQL结构要求独立的类型转换规则：
+- 函数调用：由于PostgreSQL允许函数重载， 所以函数名自身并不唯一地标识将要被调用的函数，解析器必须根据提供的参数类型选择正确的函数。
+- 操作符：操作符也可以被重载。
+- 值存储：INSERT/UPDATE语句中的表达式类型必须和目标列的类型一致（或者可以被转换为一致）
+- UNION、CASE和相关结构：输出结果必须为统一的已知类型。
+
+操作符类型决定：
+1. 从系统目录pg_operator中选出要考虑的操作符，需考虑是否有限定模式
+2. 查找一个正好接受输入参数类型的操作符
+3. 寻找最优匹配：类型最为匹配，或者能够转换成最匹配类型
+
+函数类型决定：
+1. 从pg_proc系统目录中选择要被考虑的函数，需考虑是否有限定模式。
+2. 查找一个正好接受输入参数类型的函数
+3. 寻找最优匹配：类型最为匹配，或者能够转换成最匹配类型
+
+值存储类型决定：
+1. 检查与值匹配最为准确的类型
+2. 如果没有尝试转换，从pg_cast目录中寻找合适的转换方式。如果还没有就尝试直接从string转换
+3. 如果需要，尝试调整自身的尺寸。例如，长度不足的文本放入char(n)类型的列。
+
+UNION、CASE和相关结构的类型决定：
+1. 如果所有的输入为相同类型，并且不是unknown，那么就决定是该类型。
+2. 如果任何输入是一种域类型，在所有后续步骤中都把它当做 该域的基类型。
+3. 如果所有的输入为unknown类型，则决定为text（字符串分类的首选类型）类型。否则，为了剩余规则，unknown输入会被忽略
+4. 如果非未知输入不全是相同的类型分类，则失败。
+5. 选择第一个非未知输入类型作为候选类型，然后从左到右考虑其他非未知输入类型。 如果候选类型可以隐式转换为其他类型，但反之不行，则选择其他类型作为新的候选类型。 然后继续考虑剩余的输入。 如果在此过程的任何阶段选择了首选类型，请停止考虑其他输入。
+6. 将所有输入转换为最终候选类型。如果没有从给定输入类型到候选类型的隐式转换，则失败。
+
+SELECT的输出列：简单输出列出现的未指定类型的文本会决定为text
+
+### 61. 索引
+
+```sql
+CREATE INDEX test1_id_index ON test1 (id);
+DROP INDEX test1_id_index;
+```
+
+定期地运行ANALYZE命令来更新统计信息以便查询规划器能做出正确的决定
+
+默认情况下，PostgreSQL允许在索引创建时并行地进行读（SELECT命令），但写（INSERT、UPDATE和DELETE）则会被阻塞直到索引创建完成。指定CREATE INDEX的CONCURRENTLY选项可以实现构建索引时不阻塞写入，PG则必须执行该表的两次扫描，必须等待所有现有可能会修改或者使用该索引的事务终止，总的来说，要做更多工作并且需要更多时间。
+
+如果中途创建失败，会失败，但留下一个“不可用” 的索引，会被查询所忽略，但会造成更新开销。解决：
+- 删除该索引并且尝试再次执行CREATE INDEX CONCURRENTLY
+- REINDEX INDEX CONCURRENTLY重建该索引
+
+索引类型：
+- B-tree：等值、范围查询
+- Hash：等值查询
+- GiST：是一种实现很多不同索引策略的基础设施，可以优化“最近邻”搜索。
+- SP-GiST：是一种实现很多不同索引策略的基础设施，可以实现众多不同的非平衡的基于磁盘的数据结构：四叉树、k-d树和radix树，也可以优化“最近邻”搜索。
+- GIN：GIN 索引是“倒排索引”，它适合于包含多个组成值的数据值。查询是否存在指定值。
+- BRIN：存储有关存放在一个表的连续物理块范围上的值摘要信息。（表对应的存储块内的值的摘要信息）
+
+多列索引：（多列查询条件必须由AND连接，OR则不会使用到多列索引）
+( B-tree、GiST、GIN 和 BRIN 索引类型，最多32个列 )
+- B-tree: 可以用于条件中涉及到任意索引列子集的查询。而当先导列（即最左边的那些列）上有约束条件时索引最为有效。在先导列上的等值约束，加上第一个无等值约束的列上的不等值约束，将被用于限制索引被扫描的部分。
+- GiST索引可以用于条件中涉及到任意索引列子集的查询。当第一个列有很多可区分值时更有效。
+- GIN/BRIN索引的效率与先导列无关
+
+Btree索引可以（唯一的）满足排序需求，否则PG需要物理地扫描全表
+默认情况下，B-tree索引将它的项以升序方式存储，并将空值放在最后。NULLS FIRST是ORDER BY DESC的默认情况
+一个索引在每一个索引列上只能支持一种排序规则
+
+只有B-tree能够被声明为唯一
+一个多列唯一索引将会拒绝在所有索引列上具有相同组合值的表行
+
+表达式索引对于检索速度远比插入和更新速度重要的情况非常有用。插入或更新时都重新计算表达式的值，才能存储在索引上。
+
+部分索引是建立在表的一个子集上
+
+不要使用部分索引代替分区，因为规划器并不了解应该用哪一个部分索引，导致所有索引都会被尝试读取。
+
+索引覆盖：查询需要的列都可以通过读取索引来完成。
+
+### 62. 全文搜索
+
+```sql
+-- 查询
+SELECT title
+FROM pgweb
+WHERE to_tsvector('english', body) @@ to_tsquery('english', 'friend');
+
+-- 创建全文搜索素索引
+CREATE INDEX pgweb_idx ON pgweb USING GIN(to_tsvector('english', body));
+
+-- 创建一个单独的tsvector列来保存to_tsvector的输出
+ALTER TABLE pgweb
+    ADD COLUMN textsearchable_index_col tsvector
+               GENERATED ALWAYS AS (to_tsvector('english', coalesce(title, '') || ' ' || coalesce(body, ''))) STORED;
+CREATE INDEX textsearch_idx ON pgweb USING GIN(textsearchable_index_col);
+
+SELECT title
+FROM pgweb
+WHERE textsearchable_index_col @@ to_tsquery('create & table')
+ORDER BY last_mod_date DESC
+LIMIT 10;
+```
+
+单独列的优势：
+- 不必为了利用索引而在查询中显式地指定文本搜索配置
+- 不必重做to_tsvector调用来验证索引匹配，所以更快
+
+表达式索引的优势是：
+- 占用更少的磁盘空间
+
+文本搜索解析器 负责 =》把未处理的文档文本划分成记号并且标识每一个记号的类型，
+解析器完全不会修改文本 — 它简单地标识看似有理的词边界
+内建解析器被称为pg_catalog.default
+
+### 63. 事务隔离
+
+ 在各个级别上被禁止出现的现象是：
+
+- 脏读：一个事务读取了另一个并行未提交事务写入的数据。
+- 不可重复读：一个事务重新读取之前读取过的数据，发现该数据已经被另一个事务（在初始读之后提交）修改。
+- 幻读：一个事务重新执行一个返回符合一个搜索条件的行集合的查询， 发现满足条件的行集合因为另一个最近提交的事务而发生了改变。
+- 序列化异常：成功提交一组事务的结果与这些事务所有可能的串行执行结果都不一致。
+
+隔离级别 |	脏读 	|  不可重复读 |	幻读 	|   序列化异常
+:-: | :-: | :-: | :-: | :-:
+读未提交 |	允许，但不在 PG 中 	| 可能 |	可能 |	可能
+读已提交 |	不可能 	| 可能 |	可能 	| 可能
+可重复读 |	不可能 	| 不可能 |	允许，但不在 PG 中 |	可能
+可序列化 |	不可能 	| 不可能 |	不可能 |	不可能
+
+PG实现了三个隔离级别
+- 读已提交。 一个查询（没有FOR UPDATE/SHARE子句）只能看到查询开始之前已经被提交的数据，是PG的默认级别。SELECT查询看到的是一个在查询开始运行的瞬间该数据库的一个快照，可以看见在它自身事务中之前执行的更新的效果，即使它们还没有被提交。
+- 可重复读。只有更新事务可能需要被重试；只读事务将永远不会有序列化冲突。只看到在事务开始之前被提交的数据。尝试修改行的时候会找到事务开始之前的行，如果遇到其他并发事务正在锁定/删除/更新当前行，就会出现两种情况：
+    - 如果并发事务回滚，则当前事务继续进行；
+    - 如果并发事务成功提交，当前事务就会报错。
+- 可序列化。为所有已提交事务模拟顺序的执行。对于可序列化事务，哪怕是只读事务，在成功提交之前，任何从一个持久化用户表读出的数据都不认为是有效的。
+
+**谓词锁**被用来标识和标志并发可序列化事务之间的依赖性。并不导致任何阻塞，因此不会导致死锁。
+
+### 64.锁定和索引
+
+- B-tree、GiST和SP-GiST索引：页面级锁。每个索引行被取得或被插入后立即释放锁。这些索引类型提供了无死锁情况的最高并发性。
+- Hash索引：桶级别锁被用于读/写访问。锁在整个 Hash 桶处理完成后释放。Hash 桶级锁比索引级的锁提供了更好的并发性但是可能产生死锁，因为锁持有的时间比一次索引操作时间长。
+- GIN索引：页面级锁。锁在索引行被插入/抓取后立即释放。写入开销大。一个 GIN 索引值的插入通常导致对每行产生多个索引键的插入，因此 GIN 可能为了插入一个单一值而做大量的工作。
+
+都支持共享/排他锁被用于读/写访问
+
+从并发性能来看，Btree优于Hash。但如果是非标量数据，Btree就用不了了，应该使用 GiST、SP-GiST 或 GIN 索引替代。
+
+### 65. 源码编译安装
+
+```shell
+./configure
+make
+su
+make install
+adduser postgres
+mkdir /usr/local/pgsql/data
+chown postgres /usr/local/pgsql/data
+su - postgres
+/usr/local/pgsql/bin/initdb -D /usr/local/pgsql/data
+/usr/local/pgsql/bin/pg_ctl -D /usr/local/pgsql/data -l logfile start
+/usr/local/pgsql/bin/createdb test
+/usr/local/pgsql/bin/psql test
+```
+
+### 66.运行PG
+
+在一个独立的用户账户下运行PostgreSQL：
+- 只拥有被该服务器管理的数据
+- 不能被其他守护进程共享
+- PG不为此用户帐户所有，避免被感染的服务器对PG可执行文件的修改
+
+Unix命令useradd或adduser
+
+### 67. PG服务器配置
+
+参数类型：
+- 布尔: 值可以被写成 on, off, true, false, yes, no, 1, 0 （都是大小写不敏感的）或者这些值的任何无歧义前缀。
+- 字符串: 通常值被包括在单引号内，值内部的任何单引号都需要被双写。不过，如果值是一个简单数字或者 标识符，引号通常可以被省略
+- 数字（整数和浮点）: 如果参数为整数类型，则小数值四舍五入到最接近的整数。 证书参数还接受十六进制输入(以0x开头)和十进制输入(以0开头)，但是这些格式不能有小数。 不能使用千位分隔符。引号是不是必需的，除了十六进制输入。
+- 带单位的数字: 必须被写成一个字符 串（带有引号）。单位名称是大小写敏感的，并且在数字值和单位之间可以有空白。
+  - 可用的内存单位是B（字节）、kB（千字节）、MB（兆字节）和GB（吉字节）。内存单位的乘数是 1024 而不是 1000。
+  - 可用的时间单位是 us (微秒), ms (毫秒), s（秒）、min（分钟）、 h（小时）和d（天）。
+- 枚举: 类似与字符串。但被限制到一组有限的值。大小写无关。可用的值可以在pg_settings.enumvals 中找到。
+
+postgresql.conf文件， 它通常被保存在数据目录中
+
+井号（#）指示该行的剩余部分是一个注释。
+
+主服务器进程每次收到SIGHUP信号后都会重新读取这个配置文件：
+- 命令行运行pg_ctl reload
+- 调用 SQL 函数pg_reload_conf()
+都可以发送该信号。
+
+postgresql.auto.conf， 具有和postgresql.conf相同的格式但是原自动编辑，而不是手工编辑。保存了通过ALTER SYSTEM命令提供的设置。会覆盖postgresql.conf中的设置。与postgresql.conf同时被读取。
+
+通过SQL影响参数：
+- ALTER SYSTEM - 改变全局默认值
+- ALTER DATABASE - 针对一个数据库覆盖其全局设置
+- ALTER ROLE - 用用户指定的值来覆盖全局设置和数据库设置
+- UPDATE pg_settings - 会话级别的参数修改
+
+另外，SET命令允许修改对于一个会话可以本地设置的参数的当前值， 它对其他会话没有影响。对应的函数是 set_config(setting_name, new_value, is_local)。
+```sql
+SET configuration_parameter TO DEFAULT;
+<=>
+UPDATE pg_settings SET setting = reset_val WHERE name = 'configuration_parameter';
+```
+
+查看参数：
+- SHOW命令允许察看所有参数的当前值。对应的函数是 current_setting(setting_name text)。
+- SELECT FROM pg_settings;
+
+通过SHELL影响参数
+- -c命令行参数把参数设置传递给 postgres命令
+    ```
+    postgres -c log_connections=yes -c log_destination='syslog'
+    ```
+- 使用PGOPTIONS 环境变量指定参数设置
+    ```
+    env PGOPTIONS="-c geqo=off -c statement_timeout=5min" psql
+    ```
+
+配置分间的分解与组合
+
+```
+include 'filename'
+include_dir 'directory'
+```
+
+### 68. pg_hba.conf文件
+
+kill -HUP 可以要求postgres进程重新读取配置文件
+
+```
+local                  database  user                      auth-method  [auth-options]
+tcpip-connection-type  database  user      address         auth-method  [auth-options]
+tcpip-connection-type  database  user IP-address  IP-mask  auth-method  [auth-options]
+```
+
+connection-type:
+- local 本地UNIX套接字连接
+- host 所有TCP/IP连接
+- hostssl 只匹配TLS协议
+- hostnossl 只匹配非TLS的TCP/IP协议
+- hostgssenc 只匹配GSSAPI加密连接
+- hostnogssenc 只匹配非GSSAPI的TCP/IP协议
+
+database - PG的逻辑数据库名称。特殊值有：
+- all 所有数据库
+- sameuser 被请求的数据库和请求的用户同名，则匹配
+- samerole 请求的用户必须是一个与数据库同名的角色中的成员
+- replication 必须是物理复制连接，否则当作普通PG数据库名称对待
+
+address可以是单独IP地址，也可以是带掩码的CIDR
+IP-address，IP-mask是把CIDR拆开的形式
+所以`10.8.0.0/26`和`10.8.0.0 26`都可以被识别
+
+address也可以是hostname，此时PG会跟据客户端的IP地址反向解析结果对比。
+
+auth-method：
+- trust 无条件接受
+- reject 无条件拒绝
+- ldap 企业级账户权限管理系统
+- cert 使用TLS证书认证
+- PAM 操作系统提供的PAM认证模块
+- scram-sha-256 使用scram-sha-256认证来验证用户口令
+- gss 用 GSSAPI 认证用户。只对 TCP/IP 连接可
+- passowrd 明文传输密码，不应使用
+
+### 69. 创建/销毁数据库
+
+第一个数据库总是由initdb命令在初始化数据存储区域时创建的,被称为postgres
+
+在数据库集簇初始化期间也会创建第二个数据库template1,。当在集簇中创建一个新数据库时，实际上就是克隆了template1。这就意味着你对template1所做的任何修改都会体现在所有随后创建的数据库中。因此应避免在template1中创建对象，除非你想把它们传播到每一个新创建的数据库中。
+
+```sql
+CREATE DATABASE name [ OWNER rolename ];
+
+DROP DATABASE name;
+```
+
+```shell
+createdb [ -O rolename ] dbname
+dropdb dbname
+```
+
+只有数据库的拥有者或者超级用户才可以删除数据库。删除数据库会移除其中包括的所有对象。数据库的删除不能被撤销。
+
+你不能在与目标数据库连接时执行DROP DATABASE命令。不过，你可以连接到任何其它数据库，包括 template1数据库。template1也是你删除一个给定集簇中最后一个用户数据库的唯一选项。
+
+和createdb不同，删除当前用户名的数据库不是默认动作。
