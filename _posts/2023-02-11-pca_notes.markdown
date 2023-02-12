@@ -59,7 +59,7 @@ PostgreSQL是最初的伯克利代码的开源继承者。它支持大部分 SQL
 ### 7. dropdb：物理删除指定数据库的所有相关文件，且不可取消
 
 ### 8. psql mydb：交互式终端，管理mydb数据库
-     - 提示符
+    - 提示符
         - mydb=> 普通用户
         - mydb=# 超级用户，不受访问控制的限制
     - SELECT version();
@@ -71,11 +71,15 @@ PostgreSQL是最初的伯克利代码的开源继承者。它支持大部分 SQL
     - psql的-s选项把你置于单步模式，它在向服务器发送每个语句之前暂停
 
 ### 9. 关系型数据库管理系统 （RDBMS）
- × 关系实际上是表的数学术语
- 每个**表**都是一个命名的**行**集合。一个给定表的每一**行**由同一组的命名**列**组成，而且每一**列**都有一个特定的**数据类型**。虽然列在每行里的顺序是固定的， 但一定要记住 SQL 并不对行在表中的顺序做任何保证（但你可以为了显示的目的对它们进行显式地排序）。
- **表**被分组成**数据库**，一个由单个PostgreSQL服务器实例管理的**数据库**集合组成一个**数据库集簇**
 
+* **关系**实际上是表的数学术语
+* 每个**表**都是一个命名的**行**集合。一个给定表的每一**行**由同一组的命名**列**组成，而且每一**列**都有一个特定的**数据类型**。虽然列在每行里的顺序是固定的， 但一定要记住 SQL 并不对行在表中的顺序做任何保证（但你可以为了显示的目的对它们进行显式地排序）。
+* **表**被分组成**数据库**，一个由单个PostgreSQL服务器实例管理的**数据库**集合组成一个**数据库集簇**
+
+```
  数据库集簇 -> （命名）数据库 -> （命名）表 -> （命名）行 -> （命名）列（无序） - 数据类型
+```
+
 
 ### 10. SQL创建新表
 
@@ -90,6 +94,7 @@ CREATE TABLE weather (
 ```
 
 SQL 是对关键字和标识符大小写不敏感的语言，只有在标识符用**双引号**包围时才能保留它们的大小写.
+
 可以定制任意数量的用户定义数据类型.
 
 ### 11. 删除表 `DROP TABLE tablename;`
@@ -172,6 +177,7 @@ WHERE和HAVING的基本区别如下：
 - HAVING在分组和聚集之后选取分组行。相反，HAVING子句总是包含聚集函数（严格说来，你可以写不使用聚集的HAVING子句， 但这样做很少有用。同样的条件用在WHERE阶段会更有效）
 
 ### 16. 更新
+
 ```sql
 UPDATE weather
     SET temp_hi = temp_hi - 2,  temp_lo = temp_lo - 2
@@ -191,7 +197,9 @@ DELETE FROM tablename; -- 删除所有行，把表清空
 关系型数据表由行和列组成。
 
 列的数量和顺序是稳定的，并且每一列拥有一个名字。
+
 行的数目是变化的，它反映了在一个给定时刻表中存储的数据量。
+
 SQL并不保证表中行的顺序。当一个表被读取时，表中的行将以非特定顺序出现，除非明确地指定需要排序。
 
 ```sql
@@ -328,12 +336,12 @@ CREATE TABLE circles (
 
 ### 22. 每一个表都拥有一些由系统隐式定义的系统列（system columns）
 
- - tableoid - 表的OID。该列是特别为从继承层次（见第 5.10 节）中选择的查询而准备，因为如果没有它将很难知道一行来自于哪个表。tableoid可以与pg_class的oid列进行连接来获得表的名称。
- - xmin - 插入该行版本的事务身份（事务ID）_32位量_。一个行版本是一个行的一个特别版本，对一个逻辑行的每一次更新都将创建一个新的行版本。
- - cmin - 插入事务中的命令标识符（从0开始）_32位量_。
- - xmax - 删除事务的身份（事务ID）_32位量_，对于未删除的行版本为0。对于一个可见的行版本，该列值也可能为非零。这通常表示删除事务还没有提交，或者一个删除尝试被回滚。
- - cmax - 删除事务中的命令标识符 _32位量_，或者为0。
- - ctid - 行版本在其表中的物理位置。注意尽管ctid可以被用来非常快速地定位行版本，但是一个行的ctid会在被更新或者被VACUUM FULL移动时改变。因此，ctid不能作为一个长期行标识符。 应使用主键来标识逻辑行。
+- tableoid - 表的OID。该列是特别为从继承层次（见第 5.10 节）中选择的查询而准备，因为如果没有它将很难知道一行来自于哪个表。tableoid可以与pg_class的oid列进行连接来获得表的名称。
+- xmin - 插入该行版本的事务身份（事务ID）_32位量_。一个行版本是一个行的一个特别版本，对一个逻辑行的每一次更新都将创建一个新的行版本。
+- cmin - 插入事务中的命令标识符（从0开始）_32位量_。
+- xmax - 删除事务的身份（事务ID）_32位量_，对于未删除的行版本为0。对于一个可见的行版本，该列值也可能为非零。这通常表示删除事务还没有提交，或者一个删除尝试被回滚。
+- cmax - 删除事务中的命令标识符 _32位量_，或者为0。
+- ctid - 行版本在其表中的物理位置。注意尽管ctid可以被用来非常快速地定位行版本，但是一个行的ctid会在被更新或者被VACUUM FULL移动时改变。因此，ctid不能作为一个长期行标识符。 应使用主键来标识逻辑行。
 
 分析：
 - min 插入行
@@ -486,21 +494,22 @@ SELECT name, elevation
     FROM cities*; -- 必须包含子表
 ```
 
-
 通过与pg_class进行连接可以看到实际的表名：
+
 ```sql
 SELECT p.relname, c.name, c.elevation
 FROM cities c, pg_class p
 WHERE c.elevation > 500 AND c.tableoid = p.oid;
 ```
+
 将会返回：
+
 ```sql
  relname  |   name    | elevation
 ----------+-----------+-----------
  cities   | Las Vegas |      2174
  cities   | Mariposa  |      1953
  capitals | Madison   |       845
-
 ```
 
 INSERT语句不支持自动匹配子表。
@@ -799,7 +808,9 @@ GROUP BY GROUPING SETS (
 ```
 
 ROLLUP用于有层级递进关系的列
-例如，按国家、省市的关系求去利润综合
+
+例如，按国家、省、市的关系求去利润综合
+
 ```sql
 SELECT sum(profit)，country, province, city from a_table GROUP BY ROLLUP(country, province, city);
 
@@ -811,23 +822,26 @@ sum(profit) | country | province | city
 260         | CN      | SICHUAN  | CHENGDU
 190         | CN      | SICHUAN  | MIANYANG
 450         | CN      | SICHUAN  |
+780         | CN      |          |
 ```
 
 CUBE用于平级关系的列
+
 例如，按省和部门分别分析成本
+
 ```sql
 SELECT sum(cost), province, department from a_table GROUP BY CUBE(province, department);
 
 sum(cost) | province | department
 ----------+----------+----------------
-90        | SICHUAN       | IT
-110       | SHAANXI       | IT
-160       | SICHUAN       | PRODUCT
-150       | SHAANXI       | PRODUCT
-250       | SICHUAN       |
-260       | SHAANXI       |
-200       |               | IT
-310       |               | PRODUCT
+90        | SICHUAN  | IT
+110       | SHAANXI  | IT
+160       | SICHUAN  | PRODUCT
+150       | SHAANXI  | PRODUCT
+250       | SICHUAN  |
+260       | SHAANXI  |
+200       |          | IT
+310       |          | PRODUCT
 ```
 
 DISTINCT ON处理是发生在ORDER BY排序后面的.
@@ -846,8 +860,8 @@ query1 EXCEPT [ALL] query2
 
 ORDER BY （默认ASC升序）：NULLS FIRST和NULLS LAST选项将可以被用来决定在排序顺序中，空值是出现在非空值之前或者出现在非空值之后。默认情况下，排序时NULL更大。
 
-LIMIT ALL的效果和省略LIMIT子句一样。OFFSET 0的效果和省略OFFSET子句是一样的。
-LIMIT NULL的效果和省略LIMIT子句一样。
+- LIMIT ALL的效果和省略LIMIT子句一样。OFFSET 0的效果和省略OFFSET子句是一样的。
+- LIMIT NULL的效果和省略LIMIT子句一样。
 
 如果OFFSET和LIMIT都出现了， 那么在返回LIMIT个行之前要先忽略OFFSET行。
 
@@ -914,14 +928,14 @@ NUMERIC(precision, scale)：
 - numeric的scale（小数位数）是小数部分的数字位数，也就是小数点右边的部分
 
 
-Infinity
--Infinity
-NaN：“not-a-number”
+- Infinity
+- -Infinity
+- NaN：“not-a-number”
 在 SQL 命令里把这些数值当作常量写，你必须在它们周围放上单引号 `UPDATE table SET x = '-Infinity'`
 
 float(p)用于声明非精确的数字类型。在这里，p指定以二进制位表示的最低可接受精度
-real => float(1) .. float(24)
-double precision => float(25) .. float(53)
+- real => float(1) .. float(24)
+- double => float(25) .. float(53)
 
 
 ```sql
@@ -938,16 +952,18 @@ CREATE TABLE tablename (
 ALTER SEQUENCE tablename_colname_seq OWNED BY tablename.colname;
 ```
 
-逻辑操作符：AND OR NOT
-比较操作符： >, <, >=, <=, =, !=, <>,
+```
+- 逻辑操作符：AND OR NOT
+- 比较操作符： >, <, >=, <=, =, !=, <>,
 
-BETWEEN           a AND b (包括端点)
-BETWEEN SYMMETRIC a AND b (不要求a<=b)
-a IS DISTINCT FROM b      (不等，将null是为可比较值)
-ISNULL / IS NULL          (不为NULL)
+- BETWEEN           a AND b (包括端点)
+- BETWEEN SYMMETRIC a AND b (不要求a<=b)
+- a IS DISTINCT FROM b      (不等，将null是为可比较值)
+- ISNULL / IS NULL          (不为NULL)
 
-函数num_nonnulls 返回非空参数的数量。 num_nonnulls (1, NULL, 2)  → 2
-函数num_nulls    返回空参数的数量。   num_nulls    (1, NULL, 2)  → 1
+- 函数num_nonnulls 返回非空参数的数量。 num_nonnulls (1, NULL, 2)  → 2
+- 函数num_nulls    返回空参数的数量。   num_nulls    (1, NULL, 2)  → 1
+```
 
 数字操作符：
 ```
@@ -971,7 +987,9 @@ ISNULL / IS NULL          (不为NULL)
 ### 37. 货币类型
 
 money类型存储固定小数精度的货币数字，小数的精度由数据库的lc_monetary设置决定。
+
 numeric、int和bigint的值可以被造型成money。
+
 浮点数不应该被用来处理货币，因为浮点数可能会有圆整错误。
 
 ### 38. 字符类型
@@ -983,6 +1001,7 @@ character(n), char(n)	         | 定长，空格填充
 text	                         | 无限变长
 
 存储更长的串会被截断
+
 存储更短的串：
 - varchar(n)： 原样存储
 - char(n)：用空白补满
@@ -991,22 +1010,23 @@ text	                         | 无限变长
 1. 使用相同的collate设置
 2. 在varchar和text类型中，末尾的空白有实际意义，可能导致比较结果的异常
 
-text || text / 非数组的其他类型 ： 连接字符串
-
-NOT (string LIKE pattern)）
-string {NOT} SIMILAR TO pattern [ESCAPE escape-character]
-
-
+```
+text || text / 非数组的其他类型 => 连接字符串
+```
+- NOT (string LIKE pattern)
+- string {NOT} SIMILAR TO pattern [ESCAPE escape-character]
 
 ### 39. 二进制类型
 
-bytea	1或4字节外加真正的二进制串	变长二进制串
+bytea: 1或4字节外加真正的二进制串 
+
+是一种变长二进制串
 
 * 十六进制格式 - 将二进制数据编码为每个字节2个十六进制位，最高有效位在前。整个串以序列\x开头
 * 转义格式 - `abc \153\154\155 \052\251\124'::bytea;`。三位八进制值， 并且前导一个反斜线
 
 decode ( string text, format text ) → bytea
-format可以是 base64 hex escape
+- format可以是 base64 hex escape
 
 ### 40. 时间日期类型
 
@@ -1018,6 +1038,8 @@ date	                                | 4字节	    | 日期（没有一天中的
 time [ (p) ] [ without time zone ]	    | 8字节	    | 一天中的时间（无日期）	| 00:00:00 | 24:00:00 |	1微秒
 time [ (p) ] with time zone	            | 12字节	| 仅仅是一天中的时间（没有日期），带有时区	| 00:00:00+1459	 | 24:00:00-1459 |	1微秒
 interval [ fields ] [ (p) ]	            | 16字节	| 时间间隔	| -178000000年	| 178000000年 |	1微秒
+
+p是指秒数据的小数位数字精度
 
 ### 41. 布尔类型boolean 1字节 true false unknown
 
@@ -1047,28 +1069,30 @@ circle  圆
 
 ### 44. 网络地址类型
 
-cidr / inet  7或19 字节   192.168.0.0/24
-macaddr      6     字节
-macaddr8     8     字节
+- cidr / inet: 7或19字节, 192.168.0.0/24 (IPv4: 4byte, IPV6: 16byte, netmask: 1byte足矣（2^8 = 258 > 128 or 32）, 2 more bytes可以用来表示数据类型，暂无具体证据)
+- macaddr: 6字节
+- macaddr8: 8字节
 
 inet和cidr类型之间的本质区别是inet接受右边有非零位的网络掩码， 而cidr不接受。也就是说，cidr的address是对应区间的最小IP地址。inet更为灵活
 
-inet_a <<  inet_b → boolean a是否严格包含b
-inet_a <<= inet_b → boolean a是否   包含b
-inet_a >>  inet_b → boolean a是否严格包含于b中
-...
-inet_a &&  inet_b → boolean a和b是否有交集
+```
+- inet_a <<  inet_b → boolean a是否严格包含b
+- inet_a <<= inet_b → boolean a是否   包含b
+- inet_a >>  inet_b → boolean a是否严格包含于b中
+- ...
+- inet_a &&  inet_b → boolean a和b是否有交集
+```
 
 ### 45. 位串
 
-bit(n) 要求数据必须精确匹配位数
-bit varying(n) 可以存更小的，会拒绝更大的
+- bit(n) 要求数据必须精确匹配位数
+- bit varying(n) 可以存更小的，会拒绝更大的
 
 ### 46. 全文搜索
 
 * tsvector - 处理后的利于搜索的文档类型
 * tsquery  - 查询条件的表达式类型
-    - 如果没有圆括号，!（NOT）的优先级最高，其次是<->（FOLLOWED BY），然后是&（AND），最后是|（OR）。
+    - 如果没有圆括号，`!（NOT）的优先级最高，其次是<->（FOLLOWED BY），然后是&（AND），最后是|（OR）`。
     - *来指定前缀匹配 - `'super:*'::tsquery`：以“super”开头的任意词
 
 ```sql
@@ -1077,7 +1101,9 @@ SELECT to_tsvector( 'postgraduate' ) @@ to_tsquery( 'postgres:*' ); -- @@ 前后
 
 ### 47. uuid类型
 
-gen_random_uuid () → uuid -- UUID4 随机
+```
+gen_random_uuid () → uuid (UUID4 随机)
+```
 
 ### 48. XML类型
 ### 49. JSON类型
@@ -1114,8 +1140,8 @@ SELECT '{"foo": {"bar": "baz"}}'::jsonb ? 'bar'; -- 得到假
 SELECT '"foo"'::jsonb ? 'foo';
 ```
 
-jsonb的默认 GIN 操作符类支持使用@>、 ?、?&以及?|操作符的查询
-非默认的 GIN 操作符类jsonb_path_ops只支持索引 @>操作符
+- jsonb的默认 GIN 操作符类支持使用`@>`、 `?`、`?&`以及`?|`操作符的查询
+- 非默认的 GIN 操作符类jsonb_path_ops只支持索引 `@>`操作符
 
 **json path 表达式**
 
@@ -1249,7 +1275,6 @@ row_constructor IN (subquery) -- 必须完全一样
 expression operator ANY (subquery)
 expression operator SOME (subquery)
 
-
 expression operator ALL (subquery) -- 只有全部为true，才是true；有一个false，那就是false；如果没有false，而且存在一个NULL，那就是NULL
 ```
 
@@ -1330,10 +1355,13 @@ DROP INDEX test1_id_index;
 - GIN/BRIN索引的效率与先导列无关
 
 Btree索引可以（唯一的）满足排序需求，否则PG需要物理地扫描全表
+
 默认情况下，B-tree索引将它的项以升序方式存储，并将空值放在最后。NULLS FIRST是ORDER BY DESC的默认情况
+
 一个索引在每一个索引列上只能支持一种排序规则
 
 只有B-tree能够被声明为唯一
+
 一个多列唯一索引将会拒绝在所有索引列上具有相同组合值的表行
 
 表达式索引对于检索速度远比插入和更新速度重要的情况非常有用。插入或更新时都重新计算表达式的值，才能存储在索引上。
@@ -1375,13 +1403,14 @@ LIMIT 10;
 表达式索引的优势是：
 - 占用更少的磁盘空间
 
-文本搜索解析器 负责 =》把未处理的文档文本划分成记号并且标识每一个记号的类型，
-解析器完全不会修改文本 — 它简单地标识看似有理的词边界
-内建解析器被称为pg_catalog.default
+Attention
+- 文本搜索解析器 负责 =》把未处理的文档文本划分成记号并且标识每一个记号的类型，
+- 解析器完全不会修改文本 — 它简单地标识看似有理的词边界
+- 内建解析器被称为pg_catalog.default
 
 ### 63. 事务隔离
 
- 在各个级别上被禁止出现的现象是：
+在各个级别上被禁止出现的现象是：
 
 - 脏读：一个事务读取了另一个并行未提交事务写入的数据。
 - 不可重复读：一个事务重新读取之前读取过的数据，发现该数据已经被另一个事务（在初始读之后提交）修改。
@@ -1456,8 +1485,8 @@ postgresql.conf文件， 它通常被保存在数据目录中
 井号（#）指示该行的剩余部分是一个注释。
 
 主服务器进程每次收到SIGHUP信号后都会重新读取这个配置文件：
-- 命令行运行pg_ctl reload
-- 调用 SQL 函数pg_reload_conf()
+- 命令行运行`pg_ctl reload`
+- 调用SQL函数`pg_reload_conf()`
 都可以发送该信号。
 
 postgresql.auto.conf， 具有和postgresql.conf相同的格式但是原自动编辑，而不是手工编辑。保存了通过ALTER SYSTEM命令提供的设置。会覆盖postgresql.conf中的设置。与postgresql.conf同时被读取。
