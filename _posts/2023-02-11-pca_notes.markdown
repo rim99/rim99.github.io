@@ -1587,3 +1587,68 @@ dropdb dbname
 你不能在与目标数据库连接时执行DROP DATABASE命令。不过，你可以连接到任何其它数据库，包括 template1数据库。template1也是你删除一个给定集簇中最后一个用户数据库的唯一选项。
 
 和createdb不同，删除当前用户名的数据库不是默认动作。
+
+### 70. 初始化数据库
+
+```
+# must be root
+postgresql-14-setup initdb
+
+# mustn't be root
+initdb -D <folder>
+```
+### 71. 物理备份
+
+#### 备份
+
+首先在PG的配置文件中开启备份
+
+```
+wal_level = 'replica'
+archive_mode = 'on'
+archive_command = 'cp %p /archive_folder/%f' # 任意Shell命令以保存WAL段文件
+```
+
+全量备份：`pg_basebackup`
+增量备份：`pg_receivewal`
+
+在源数据库中读取恢复标记：
+- 时间点：`select current_timestamp`
+- 事务ID：`select pg_current_xact_id()`
+- LSN号：`select pg_current_wal_lsn()`
+- 主动创建还原点： `select pg_create_restore_point('<restore-point-id>')`
+
+P.S. 如果需要确保一个刚刚完成的事务能被尽快归档，可以使用`select pg_switch_wal()`进行一次手动段切换。
+
+#### 还原
+
+在PG备机中加入配置
+
+```
+recovery_target_action = 'promote'
+restore_command = 'cp /archive_folder/%f %p' #和archive_command相对应
+```
+
+根据恢复标记的不同加入不同配置
+- 时间点
+```
+recovery_target_time = '<timestamp>'
+```
+- 事务ID
+```
+recovery_target_xid = '<transaction id>'
+```
+- LSN号
+```
+recovery_target_lsn = '<lsn_no>'
+```
+- 主动还原点
+```
+recovery_target_name = '<restore_point_name>'
+```
+
+PG备机启动完成后，执行命令以开启恢复
+
+````
+select pg_wal_replay_resume();
+```
