@@ -52,7 +52,7 @@ Reindex的默认参数效率较低，任务执行时间很长。稍加优化，�
     ```
     - 这个方案更**快**
     ```
-    POST  _reindex?slices=5`
+    POST  _reindex?slices=5
     {
         "source": {
             "index": "idx-2",
@@ -62,8 +62,9 @@ Reindex的默认参数效率较低，任务执行时间很长。稍加优化，�
             "index": "idx-1"
         }
     }
-
+    #
     # 前一个任务执行结束后，再执行下一个
+    #
     POST  _reindex?slices=5
     {
         "source": {
