@@ -15,7 +15,7 @@ categories: 笔记
 
 iptables包含5张表，每一张表用于不同的场景。每一张表都预定义有若干默认的规则链。
 - `filter`：过滤IP协议包，包含`input`，`forward`，`output`三条链
-- `nat`：转发协议包，包含`prerouting`，`output`，`postrouting`三条链
+- `nat`：转发IP协议包，包含`prerouting`，`output`，`postrouting`三条链
 - `raw`，`mangle`，`security`三张表不常用
 
 每条链的作用范围不同
