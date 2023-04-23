@@ -17,7 +17,7 @@ iptables已经是一个处于legacy状态的项目，不会有新的feature增�
 
 ## nftables vs iptables
 
-那么新的nftables究竟有哪些优势呢？毕竟，不管是iptables还是nftables，都只是一个IP协议包的控制工具。我的一个直观的感受就是，nftables可以将控制规则组织出一个良好的逻辑结构，更方便管理。
+那么新的nftables究竟有哪些优势呢？
 
 举个例子，一台服务器需要处理5个客户的流量，各自有不同的来源/目标CIDR。如果有一天，老板告诉你，客户C不合作了，我们需要与其有关的规则全部干掉。
 
@@ -95,6 +95,10 @@ nft add rule ip nat PREROUTING tcp dport 1000 counter dnat to 1.1.1.1:1234
 # iptables-restore-translate -f backup.iptables > backup.nft
 # nft -f backup.nft
 ```
+
+## 总结
+
+尽管无论是iptables还是nftables，都只是一个IP协议包的控制工具。但是nftables可以将控制规则组织出一个良好的逻辑结构，在管理复杂规则场景中有更大的优势。
 
 ## 延伸阅读
 
