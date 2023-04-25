@@ -2,7 +2,7 @@
 layout: post
 title: "别再用iptables了"
 date: 2023-04-21 18:27:44 +0800
-categories: 笔记
+categories: 原创
 ---
 
 [Netfilter团队](https://www.netfilter.org)的精力都放在了[nftables](https://www.netfilter.org/projects/nftables/index.html)项目上。这个才是Linux的现役IP协议层管理工具。
