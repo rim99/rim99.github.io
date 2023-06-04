@@ -1,0 +1,918 @@
+---
+layout: post
+title: "PCP学习笔记"
+date: 2023-06-04 16:39:39 +0800
+categories: 笔记
+---
+
+## 安装
+
+四种安装方式：
+- 二进制安装，EDB提供（deprecated）
+- 包管理器安装：
+    - 在Postgresql.org上查找包管理器对应的repo，在本地完成添加，并安装。(yum/dnf/apt)
+    - URL: https://www.postgresql.org/download/
+- RPM安装：下载安装包，在本地安装
+- 源码编译安装：https://www.postgresql.org/docs/current/install-short.html
+
+### 依赖
+
+- readline
+- flex
+- bison
+
+### 编译
+
+```
+./configure # 追加编译参数
+make -j8
+make install
+```
+
+### 环境变量设置
+
+URL: https://www.postgresql.org/docs/current/install-post.html
+
+```
+LD_LIBRARY_PATH=/usr/local/pgsql/lib
+export LD_LIBRARY_PATH
+PATH=/usr/local/pgsql/bin:$PATH
+```
+
+`systemctl disable/stop firewalld`
+
+## 配置
+
+配置的级别: system -> database -> session -> role
+
+查看参数:
+- select * from pg_settings
+- select current_setting("xxx")
+- show XXX
+
+修改配置:
+- SQL
+    - alter system 命令
+    - alter database
+    - select set_config(xxx)
+- 修改配置文件 vim/sed
+- update pg_settings
+
+修改生效:
+- kill -SIGHUP
+- pg_ctl -D xxx reload
+- select pg_reload_conf()
+- systemctl reload <pg-service>
+
+## 密码管理
+
+用户名密码存储在pg_authid里
+
+查看密码存储方式
+
+```
+select * from pg_shadow
+alter system set password_encryption = 'scram-sha-256'
+select pg_conf_reload();
+```
+
+## psql
+
+psql可以修改内容的输出格式，例如HTML: `psql -H -c "select 1"`
+
+\c 命令可以立即修改登陆用户 -> \c <db> <user> [-占位符表示不修改]
+
+\x 美化输出，行列互换
+
+\d \di \dt \dv \ds 显示表、索引、视图、序列等等
+
+\db 表空间
+
+\du \dg 用户、组
+
+\copy 导出数据
+
+\! 执行shell命令
+
+\set ECHO_HIDDEN on 显示建表（视图）命令
+
+\errverbose 显示前次报错的详细信息
+
+<SQL>;\watch 1 每1秒执行一次SQL命令
+
+## 日志
+
+- Linux系统日志：/var/log/message
+- PG日志：$PGDATA/log
+
+在conf配置文件中配置log行为
+
+## 序列
+
+```sql
+create table aaa (xxx serial);
+create sequence xxx;
+```
+
+cache表示：每次预先读取xx个数字，有可能造成乱序插入。
+
+## 导出数据
+
+\copy：
+- 可以执行多行SQL命令
+- 不需要管理员权限。此外，`copy`使用STDIN/STDOUT也不需要管理员权限
+
+```sql
+copy table_xxx to '/home/xxx/xxx_dump.csv' with csv header delimiter '|'
+
+copy table_yyy from '/file/yyy.csv' with csv header
+```
+
+## 分区表
+
+《关于分区表的方方面面》by xiongcc
+
+分区表的好处
+- 索引并发创建
+- 并发的vacuum
+- 大逻辑表中冷数据放在廉价存储介质上，热点数据放在SSD上
+- 批量加载删除数据
+- 分区裁减，缩小扫描范围，提高缓存命中率，提高查询性能
+
+```
+psql> create table p(id int, info text)  PARTITION BY HASH (id) ;
+psql> create table p1 partition of p for values with (modulus 2, remainder 1);
+psql> create table p0 partition of p for values with (modulus 2, remainder 0);
+...
+psql> alter table p detach partition p1;
+```
+
+Refer to: [PG Doc - Table Partitioning](https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITIONING-DECLARATIVE)
+
+插件:
+- pg_pathman
+- pg_rewrite
+
+## 物化视图
+
+相比普通视图，物化视图占用了存储空间，性能更好。
+
+创建：`create materialized view xx_view as select * from xxx with data`。
+
+使用explain检查执行计划：`explain select * from xx_view`。
+
+查看存储空间的占用情况：`select pg_size_pretty(pg_relation_size('xx_view'))`。
+
+更新视图：`refresh materialized view (concurrently) xx_view`。
+
+P.S. PG的锁状态可以在表`pg_locks`中查询。
+
+```sql
+select
+relation::regclass,*
+from pg_locks
+where pid = 1234
+order by relation:regclass;\watch 1
+```
+
+插件：pg_ivm
+
+## SQL in PG
+
+`select word from pg_get_keywords()`获得PG关键字
+
+《Postgres 9种 索引使用范围》
+
+PL/pgSQL - 创建自定义函数、触发器、存储过程
+
+调试插件
+- pldebugger
+- pldbgapi
+
+with表达式
+- 比临时表轻量
+- 支持递归查询
+
+## 外部表FDW
+
+[PG Doc - Additional Supplied Modules - file_fdw](https://www.postgresql.org/docs/15/file-fdw.html)
+
+PG WIKI：《WIP postgresql sharding》
+
+```sql
+create extension XXX;
+create server YYY foreign data wrapper XXX options(...);
+create foreign table ZZZ (...) server YYY options(...);
+```
+
+```
+psql> create extension file_fdw;
+psql> create server local_file foreign data wrapper file_fdw;
+psql> create foreign table local_data(id int, info text) server local_file options(filename '/home/postgres/data.csv', format 'csv', header 'true');
+```
+## 全文检索
+
+[PG Doc](https://www.postgresql.org/docs/15/textsearch-tables.html)
+
+### varchar_pattern_ops
+
+一种operator class，可以为varchar创建btree索引。默认的方式是按照严格比较char的值排序，该class可以按照locale的特殊方式来排序。
+
+一个用途是，加速字符串前缀匹配查找操作  `SELECT FROM table_name WHERE column LIKE 'XXXX%'`
+
+https://www.postgresql.org/docs/current/indexes-opclass.html
+
+### reverse函数
+
+PG有reverse函数可以反转字符串。一个可用的方式是加速字符串后缀匹配查找
+
+```sql
+CREATE INDEX ON <TABLE> (reverse(<COL>) text_pattern_ops);
+
+SELECT * FROM <TABLE> WHERE reverse(<COL>) LIKE reverse('%xxx');
+```
+
+### 插件：
+- pg_trgm: https://www.postgresql.org/docs/current/pgtrgm.html
+- pg_bigm: https://github.com/pgbigm/pg_bigm
+- pg_jieba 中文分词
+
+[PgSQL · 特性介绍 · 全文搜索介绍](https://www.bookstack.cn/read/aliyun-rds-core/95448ef8baeab262.md)
+
+### index与查询
+
+```sql
+CREATE INDEX pgweb_idx ON pgweb USING GIN (to_tsvector('english', body));
+
+ALTER TABLE pgweb
+    ADD COLUMN textsearchable_index_col tsvector
+               GENERATED ALWAYS AS (to_tsvector('english', coalesce(title, '') || ' ' || coalesce(body, ''))) STORED;
+CREATE INDEX textsearch_idx ON pgweb USING GIN (textsearchable_index_col);
+
+SELECT 'a fat cat sat on a mat and ate a fat rat'::tsvector @@ 'cat & rat'::tsquery;
+SELECT textsearchable_index_col @@ 'cat & rat'::tsquery;
+```
+
+### 小技巧
+\dFp+ 全文搜索相关token类型、
+
+## 体系架构
+
+多进程
+
+```
+cluster(实例) -> database -> schema -> table/function -> columm * row
+                            tablespace: 物理划分，控制硬盘的使用
+```
+
+角色的权限也是逐层赋予的，例如角色User有了schema s1的权限，但不一定有表s1.t_1的权限
+
+角色 vs 用户
+
+### 总体结构
+
+```
+ PostMaster <----->  User (Client process)
+     o                   T
+     |                   |
+   create                |
+     |                   |
+     v                   v
+Share Memory <-----o Backend Process
+     ^
+     |
+     o
+Background Process
+```
+
+BG Process
+- startup: 负责从异常恢复
+- bgwriter: 周期性将shared buffer pool脏页刷入硬盘，默认周期200ms
+  - 好处：
+    - 定期腾出缓存空间
+    - 减少了LRU缓存在驱逐脏缓存时临时刷盘的IO尖刺
+  - 监控：
+    - `select * from pg_stat_bgwriter`
+  - 控制参数：
+    - `show bgwriter_<TAB>`
+- WAL writer: 将WAL日志从共享缓存写入文件
+  - 触发时机：
+    - 事务提交
+    - WAL write间歇时间达到
+    - 创建checkpoint
+    - WAL缓存区满
+- Achive process: 负责WAL日志归档
+- logging collector: 将消息写入系统运行日志文件
+- stats collector: 统计信息收集（pg_stat_activity， pg_stat_all_tables）放置在stats_temp_directory指向的文件中（默认pg_stat_tmp，最好在内存文件系统中），用于pg_catalog优化查询
+- checkpointer: 每遇到检查点时刻，就执行共享缓存刷盘，包括：WAL日志，事务提交日志、事务元信息等所有缓存。只刷盘，不会驱逐缓存。从而确保检查点之前的WAL日志不再需要，可以清理。
+    - 触发机制：
+      - `psql> checkpoint;`手动触发
+      - `checkpoint_timeout`超时触发
+      - `max_wal_size`超大触发
+      - 执行复制触发：`pg_basebackup, pg_start_backup()`
+      - 执行恢复时触发
+      - create/drop database
+- autovacummn launcher:
+    - 功能：
+        - 周期性启动进程来清理表、索引中的陈旧内容
+        - 更新查询规划器需要的统计数据
+        - 更新可见性映射 FSM
+        - 保护老数据不会因为事务回滚而丢失
+    - 插件：pg_visibility
+    - 如果误改删表数据，应立即停止表的auto vacuum：`alter table <T> set (autovacuum_enabled = off)`
+- wal sender
+- wal receiver
+
+
+### 内存结构
+
+#### 共享内存
+
+`select * from pg_shmem_allocations`
+
+* Shared Buffer Pool - 表、索引的文件存储块缓存. [The pg_buffercache View](https://www.postgresql.org/docs/current/pgbuffercache.html)
+* WAL Buffer - WAL日志缓存
+* CommitLog Buffer - 事务提交日志的缓存
+
+#### 本地内存
+
+URL: https://interdb.jp/pg
+
+Backend process memory
+1. work_mem：用于排序(order by, distinct)、位图操作，哈希连接，合并连接，默认4MB. 建议在会话级别重新设置。`set work_mem = '64MB'`。
+2. maintenance_work_mem：用于Vacuum和索引创建， 默认64MB。
+  - 查看vacuum进度：`select * from pg_stat_progress_vacuum`
+3. temp_buffers：用于临时表，默认8MB。
+4. vacuum buffers
+
+#### 观测
+
+各进程的内存使用：
+- `ps -aux | grep postgres` 不准确，因为拿到的值是RSS，包含了共享内存的大小
+- `cat /proc/<pid>/smaps`，可以得到每个进程的USS
+- `smem` 看USS (Unique Set Size, 进程独自占用的物理内存，不包含共享库占用的内存)
+
+查看共享内存：
+- `cat /proc/<pid>/smaps | grep /dev/zero`
+- `pmap -d <pid>`
+- `psql> show shared_buffers;`
+
+### 数据交换
+
+双缓存架构：
+* PG - Buffer Cache 缓存硬盘块
+* Linux - Page Cache 缓存文件系统的文件数据
+
+PG预热插件：
+- pgfincore
+- pg_prewarm
+
+数据流：PG backend process -> buffer cache -> page cache -> disk files
+
+观测： `cat /proc/meminfo| egrep -e 'Buffers|Cached'`
+
+P.S. [Linux `kswapd`守护进程的内存水位管理]()
+
+一次checkpointer刷盘的时间会尽量控制在 `checkpoint_timeout(5min) * checkpoint_completion_target(0.9)` 之内
+
+### 物理结构
+
+- 实例：独自占据一个端口
+- 数据库：数据库之间不能共享数据，默认块大小为8KB
+- Schema：逻辑上分离了表、函数、视图等。
+- 表：
+  - TOAST：PG不允许一行数据的长度超过一个块大小（8kb），如果超出，就将大的字段压缩，或者存储在TOAST表中，称为行外存储。Refer to：[PG Doc - TOAST](https://www.postgresql.org/docs/current/storage-toast.html)
+- 列：
+- 表空间：
+  - $PGDATA/base <=> pg_default
+  - $PGDATA/base/pgsql_tmp <=> 临时会话数据
+  - $PGDATA/global <=> pg_global
+- 视图：
+- 行：
+- 索引：
+
+导出快照在$PGDATA/pg_snapshots下：`pg_exportsnapshot()`
+
+表的物理存储目录：`select pg_relation_filepath('<table>')`
+
+查看表空间：`select * from pg_tablespace;`
+
+查看数据库：`select * from pg_database;`
+
+二进制文件查看工具： `hexdump`
+
+vm/fsm文件：
+- fsm: https://www.postgresql.org/docs/current/storage-fsm.html
+- vm: https://www.postgresql.org/docs/current/storage-vm.html
+
+<oid>_init：无日志表，`create unlogged table xxx(...);`
+
+快速查看oid：`select oid, relfilenode from pg_class where relname = '<object>'`
+> relfilenode指向对应的文件名，对于确定的一张表来说是可变的，例如vacuum full操作。
+
+`segment_size`决定了表文件的最大大小，如果超大会被拆分为多个文件：`<relfilenode>`，`<relfilenode.1>`，...
+
+`pageinspect`每页（page）有[24bytes的头部数据](https://www.postgresql.org/docs/15/storage-page-layout.html)
+
+### 表空间
+
+对表的逻辑划分
+
+查看 `\db+`
+
+- `pg_internal.init`系统信息缓存
+- `pg_filenode.map`文件映射关系
+
+`oid2name` 产看oid的信息：文件名、object名
+
+`alter tablespace xxx set (seq_page_cost = ?)`
+
+- 使用更多硬盘空间
+- 数据冷热分离存储
+
+- effective_io_concurrency/maintenance_io_concurrency：决定硬盘预读的block数量，后者作用于维护进程
+
+### page、记录、硬盘、内存
+
+记录(tuple，或row)存放在page（页）中。一个页默认为8KB（最大可以是32KB？）。
+
+```sql
+psql> show block_size;
+```
+
+page持久化在硬盘中，可以临时地存在于：
+- 共享缓冲区Shared buffers中
+- 操作系统的page cache中
+
+产看一张表的页数量、行数量：
+```sql
+select relpages, reltuples, reltuples/relpages as rows_per_page
+from pg_class
+where relname = '<table>';
+```
+
+### 建立会话
+
+一个postgres（旧称postmaster）进程只监听唯一的一个的TCP端口，接收客户端连接。认证结束后，fork一个backend process
+
+《深入浅出冻结炸弹》：32位事务ID + MVCC的可见性机制 => 只有20亿左右的实际可用事务ID
+
+```
+postgres --single # 单用户模式，也就是维护模式
+psql> vacuum freeze;
+```
+
+postgres在创建backend process的中间状态时，会存在与postgres一致的进程，稍后会成为正式的backend process。PG连接池可以有效减少类似情况的发生。
+
+### WAL日志
+
+《数据库内核月报 - 2017/03 - WAL机制浅析》
+
+redo日志
+
+写入数据：
+1. 写入WAL buffer
+2. 更新Data buffer
+3. 两缓存异步刷盘：checkpoint, bgwriter, etc.
+
+WAL buffer刷盘时机：
+1. 事务同步提交（synchronous_commit = 'on'）。lsn，每一个page都有一个pd_lsn，用于对比确认内存中的事务是否提交
+2. WAL writer进程到达间歇时间（默认wal_writer_delay=200ms）
+3. 创建checkpoint
+4. WAL缓冲区满
+
+异步提交事务（synchronous_commit = 'off'），有可能造成事务丢失
+
+插件：
+- pageinspect
+
+### 一些函数
+
+```
+psql> show archive_command;
+```
+
+```sql
+select *
+from pg_stat_archiver;
+```
+
+获取数据库的创建时间
+
+```sql
+select
+to_timestamp(((system_identifier>>32) & (2^32 -1)::bigint))
+from pg_control_system();
+```
+
+获取数据库的上线时间
+
+```sql
+select pg_postmaster_start_time();
+```
+
+取消后端进程当前的查询：`pg_cancel_backend()`
+
+《有趣的表大小》
+
+查看索引相关信息，可以使用表：`pg_stat_user_indexes`：
+- 定义：`select pg_get_indexdef(indexrelid) from pg_stat_user_indexes`
+- 使用率: 列`idx_scan`
+
+### 其他
+
+`postmaster.pid`:
+- PID
+- 数据目录
+- 监听端口
+- 共享内存地址
+- 启动时间？
+- 。。。
+
+## 备份与恢复
+
+逻辑备份
+- pg_dump/pg_dumpall
+- copy
+
+物理备份
+- 冷备份
+  - 停机后，`cp $PGDATA $TARGET_DIR`
+- 热备份
+  - 基础备份 + WAL日志
+    - `archive_mode = on`
+    - `archive_command = 'cp %p <DIR>/%f'`
+  - pg_start_backup/pg_stop_backup
+    - pg_start_backup默认会在checkpoint点触发，也可以设置fast=true立即开始备份
+    - 备份模式开启后，使用文件复制工具备份整个`$PGDATA`目录
+    - 复制结束后，执行pg_stop_backup。该命令类似于pg_swicth_wal可以切换wal文件。
+    - 排它模式（第三个参数），V15删除；《你真的了解 PostgreSQL备份吗》
+  - pg_basebackup
+    - 一个自动化执行后上述逻辑的全量备份工具
+    - `/usr/pgsql-14/bin/pg_basebackup -h localhost -Fp -R -P -v -D pg_backup_20230523`
+      - 备份目录必须是700/750权限，才能启动PG实例
+      - 备份恢复后得到只读实例，调用`pg_promote`函数后才能执行写操作
+      - 是否为只读实例，也可以通过函数来判断`pg_is_in_recovery`
+  - 每一次归档文件恢复后，都会产生新的时间线
+
+流行的备份工具：
+- pg_probackup
+- pg_backuprest
+- barman
+- pg_rman
+- OmniPITR
+
+## 导入/导出
+
+快速插入临时数据 # TODO: relocate this
+
+```sql
+create table test (id int, info text);
+insert into test select n, 'test'||n from generate_series(1, 100) as n;
+```
+
+```shell
+bash> pg_dump -t '<table>' -f '<target_file>'
+# -F 备份格式：custom/dir类型的备份默认会压缩，仅dir类型支持并发导出
+# -s schema only
+```
+
+plain类型的备份结果是SQL脚本，使用`psql`完成导入。而custom/dir/tar都需要使用`pg_restore`来完成导入。
+
+查找指定用户的所有视图:
+
+```sql
+select usesysid from pg_user where usename = '<user_name>';
+select relname from pg_class where relowner = '<uid>' where relkind = 'v';
+```
+
+pg_dump可以处理大对象，而pg_dumpall不可以
+
+```shell
+pg_dump -d 'db1' -t '<table>' | psql -d 'db2' # 将db1中的表迁移至db2
+```
+
+## 增量备份与恢复（PITR，Point-in-Time Recovery）
+
+[PG Doc](https://www.postgresql.org/docs/current/continuous-archiving.html#BACKUP-PITR-RECOVERY)
+
+主库：
+- archive_mode = on
+- wal_level >= replica
+- archive_command = 'cp %p `<DIR>`/%f'
+
+从库：
+- `touch ${PGDATA}/recovery.signal`
+- restore_command = 'cp `<DIR>`/%f %p'
+- restore_target_<xxx> = ?
+
+conf: `recovery_target_inclusive`是否恢复target指定的那个点？
+- 时间点：`select current_timestamp`
+- 事务ID：`select pg_current_xact_id()`与`select txid_current()`是等效的
+- LSN号：`select pg_current_wal_lsn()`
+- 主动创建还原点： `select pg_create_restore_point('<restore-point-id>')`
+
+```shell
+pg_basebackup -Fp -p <port> -D <backup_dir>
+```
+
+`pg_stat_archiver`表：归档监控
+
+`pg_verifybackup`：校验备份数据
+
+`select txid_current()`：获取当前已提交的事务ID
+
+`select * from pg_settings where name like '%<kw>%'`：查找有某关键字的设置项
+
+`select pg_switch_wal()`：强制切换至新的WAL文件，**必须在恢复之前执行，以保证WAL归档文件中包含足够新的日志**
+
+`pg_archivecleanup -d <DIR> xxx.backup`日志归档目录`<DIR>`的清理工具，`xxx.backup`之前的wal日志都会清理
+
+## PG升级
+
+《PostgreSQL版本升级》
+
+大版本升级
+- pg_dump
+- pg_dumpall
+  - 安全，但是非常耗时
+- pg_upgrade
+  - PG的编译参数必须一致。可以使用`pg_config`来查看
+  - 需要停机
+  - link模式会造成原版本不可用
+  - 默认模式会耗费更多硬盘空间 （`--clone`是更好的，有`link`模式的速度，不会复制太多的文件，也不会让旧的数据目录不可用）
+  - 需要预先创建新版本的数据目录，并完成初始化
+- 逻辑复制
+  - 短停机时间，甚至零停机
+  - 配置繁琐
+  - 原生逻辑复制有缺陷：序列、DDL、视图等等
+
+## 流复制
+
+将WAL日志流式传送给备用数据库。默认为异步传输，有数据丢失的可能性。
+
+级联复制，增加备份实例的同时，降低主库压力。
+
+```
+backend process --wal--> wal buffer -> wal file -> wal sender -> remote server wal receiver -> wal file -> startup process wal replay
+```
+
+`pg_controldata` 可执行文件
+
+
+《数据库内核月报 - 时间线解析》
+
+primary：
+- 确认：
+  - `ps -ef`：有`walsender`进程
+  - `pg_controldata -D $PGDATA`: `Database cluster state: in production`
+- 监控
+  - `pg_stat_replication`表
+- config:
+  - max_wal_senders > 0
+  - listen_address = '*' 
+  - `psql -c "create user foo with replication password 'foopass'"`
+  - pg_hba.conf -> allow user 'foo' for replication
+  `# 同步复制`
+  - `synchronous_commit = 'remote_xxx'`
+  - `synchronous_standby_names = 'first 1 (s1)'`
+
+standby:
+- 确认：
+  - `pg_is_in_recovery`函数
+  - `ps -ef`：有`walreceiver`进程
+  - `pg_controldata -D $PGDATA`: `Database cluster state: in archive recovery`
+- 监控
+  - `pg_stat_wal_receiver`表
+- `touch $PGDATA/standby.signal`
+- ```
+  primary_conninfo = 'host=192.168.0.1 port=5432 user=foo password=foopass options=''-c wal_sender_timeout=5000'''
+  restore_command = 'cp /path/to/archive/%f %p'
+  archive_cleanup_command = 'pg_archivecleanup /path/to/archive %r'
+  ```
+
+如何避免“备库宕机时间过长，而无法获取被主库清理掉的WAL日志”？
+1. 开启WAL归档，在备库设置`restore_command`获取归档WAL日志
+2. 使用复制槽
+  - 主库：`psql> SELECT pg_create_physical_replication_slot('test_slot')`
+  - 备库：conf -> `primary_slot_name = 'test_slot'`
+  - 主库管理复制槽：表`pg_replication_slots`
+
+常用配置
+- `recovery_min_replay_delay`设置延迟备库。延迟了WAL日志的回放，产生了一定的时间窗口用来及时纠正误操作。
+- `max_standby_streaming_delay`允许WAL回放遇到冲突的时候，延迟一段时间。
+- `hot_standby_feedback`备库主动告知主库需要的xmin值（`pg_replication_slots`表），可以避免主库主动制造冲突。也有可能造成表膨胀。
+
+`synchronous_commit`选项
+- `off`表示异步提交。风险：数据库宕机时，还没有落盘的事务会丢失。其他选项均需要同步等待本机WAL刷盘
+- `on`默认值，表示等待WAL buffer刷盘
+- `local`，无需等待复制的回复。
+- `remote_write`，需要等待备库WAL确认刷盘
+- `remote_apply`，需要等待备库确认WAL回放成功
+
+
+## 逻辑复制
+
+发布端：
+- 配置
+  - `wal_level >= logical`
+  - pg_hba.conf -> 允许用户接入
+  - `grant select on <tables> to <user>`，否则会在订阅端日志中报错：缺少权限
+  - `create publication <p> for table <tables>`
+- 监控
+  - `psql> \dRp+`
+  - `select * from pg_publication`
+  - `select * from pg_publication_slots where slot_name = <?>`
+
+订阅段：
+- 配置
+  - `wal_level >= logical`
+  - `create subscription test_sub connection 'host=192.168.0.1 port=5432 user=foo password=foopass dbname=postgres' publication t1;`
+- 监控
+  - `psql> \dRs+`
+  - `select * from pg_subscription`
+
+需要注意的配置项：
+- max_replication_slots
+- max_wal_senders
+- max_logical_replication_workers
+- max_worker_processes
+
+限制项：
+- 无法复制DDL，序列，大对象
+- 不支持物化视图、视图、外部表、索引、unlogged表等的复制
+- 只支持表的复制，包含分区表
+- 只能触发行级触发器，语句触发器不会被触发
+- 初始复制的时候，使用的是copy协议。每一行的copy都等同于一个insert语句，会触发对应的行触发器和语句触发器。
+- more refer to: [doc](https://www.postgresql.org/docs/current/logical-replication-restrictions.html)
+
+## 性能调优
+
+[Exaplain 文档](https://www.postgresql.org/docs/15/using-explain.html)
+
+查看成本：`select name,setting from pg_settings where name like '%cost%'`
+
+查看表、索引等的物理存储页、元组数量：`select relpages, reltuples from pg_class where relname = '<object_name>'`
+
+当数据表中死元组数量达到阈值的时候，自动触发：
+- Autoanalyze = autovacuum_analyze_scale_factor * 全表元组总数 + autovacuum_analyze_threshold
+- Autovacuum = autovacuum_vacuum_scale_factor * 全表元组总数 + autovacuum_vacuum_threshold
+
+第三方插件
+- [pg_hint_plan](https://pg-hint-plan.readthedocs.io/en/latest/description.html)
+
+关于计划和代价：
+- (页面数 * `seq_page_cost`) + (表行数 * `cpu_tuple_cost`)
+- 如果涉及对比，则：对比次数 * `cpu_operator_cost`
+- Bitmap [Table/Index] Scan代表：扫描之前做了一次位图排序，比单纯的扫描效率高一些
+- 对于Index Scan，表行的读取顺序和索引的顺序一致。因此，有很大可能存在随机读的行为，每行读取的代价更大。但读取行数量一般不会很多
+- 关于`Incremental Sort`，这种排序与普通排序相比，能够在对整个数据集排序之前返回元组，非常适合LIMIT场景。对内存要求低，不会将排序溢出到硬盘上，但需要将数据集分为多份进行排序。
+- 如果计划需要利用多条索引，那就有可能需要将各自的过滤结果用位图求并/或（BitmapAnd/BitmapOr）
+- 对于Join，其第一个子节点为外层节点（outer），其余以此类推
+- 物化节点`Materialize`，表示其（中间）计算结果，临时缓存在内存中。重复读取的代价极低。
+- “顺序扫描 + 排序”通常比索引扫描更为高效，因为避免了多次随机读
+- 一种调试计划的方法是临时控制计划开关，例如执行“SET enable_sort = off”来要求生成一个不排序的计划，并观察其计划细节和代价。
+- 关于`explain analyze`，一个重点是要关注计划与实际所涉及的行数是否一致
+
+### 查询语句分析
+
+#### 日志
+
+在日志中，打印每一条SQL的执行时间。
+
+```
+# postgresql.conf
+log_min_duration_statement = 0
+```
+
+#### 插件
+- 官方插件[`pg_state_statements`](https://www.postgresql.org/docs/current/pgstatstatements.html)
+- 另有，percona出品的[`pg_stat_monitor`](https://github.com/percona/pg_stat_monitor)
+
+官方插件的使用
+- conf中加载共享库：`shared_preload_libraries = 'pg_stat_statements'`
+- 数据库必须重启，然后执行`create extension pg_stat_statements`
+
+有用的博客：[Identify Slow PostgreSQL Queries with pg_stat_statements](https://www.timescale.com/blog/identify-postgresql-performance-bottlenecks-with-pg_stat_statements/)
+
+
+### 数据库系统优化
+
+- 使用连接池
+- 减少网络RTT
+- 减少解析器/规划器的开销：例如复用查询计划（绑定变量）
+- 关注CPU/RAM/Disk的硬件性能
+- 利用多个硬盘，实现并发读写
+- 分离事务日志，将pg_xlog放在其他硬盘上
+
+对并行（parallel）的利用：
+- `max_parallel_workers_per_gather`：限制单个会话的并行进程数量
+- `max_parallel_workers`：限制整个系统的并行进程数量
+- `max_worker_process`：限制整个系统的进程数量
+
+合理设置系统的共享内存段`shmmax`
+
+选择合理的文件系统：XFS，BTRFS
+
+设置Shared Buffer Pool大小：PG使用双缓存体系，所以SBP不能太大，建议：15%-25% * 系统内存
+
+work_mem：用于内部排序和散列表。最小64KB，默认1MB。
+
+maintenance_work_mem：用于vacuum和restore/dump，适当调大可以提高维护性操作的速度
+
+fsync：默认开启的。保证了必要数据及时的写入硬盘。如果关闭，则数据库只写入系统页缓存，磁盘刷入由系统完成。一般只允许只读库关闭该选项。
+
+wal_buffers：适当增加可以提高系统在频繁写场景下的性能表现。但设置过高的值没有意义。默认为共享缓冲区（shared_buffers）的1/32，但介于64kb和WAL segment大小（默认16MB）之间。不能低于32kb。[WAL配置](https://www.postgresql.org/docs/15/wal-configuration.html)
+
+max_wal_size：如果太小，有可能导致频繁的全量硬盘写操作。
+
+checkpoint_warning：时间阈值。如果checkpoint发生过于频繁（在该阈值时间内发生两次或以上），会产生一条告警日志。
+
+设置合理的表空间成本参数，例如：`random_page_cost`。
+
+统计信息：pg_class, pg_stat, pg_statistic
+
+固化计划的插件：
+- [pg_plan_guatantee](https://github.com/DrPostgres/pg_plan_guarantee)
+- [sr_plan](https://github.com/postgrespro/sr_plan)
+
+PG也可以对行建簇，也就是让行的分布和索引一致，类似于聚簇索引。`cluster <table> using <idx>`。见[Cluster](https://www.postgresql.org/docs/15/sql-cluster.html)
+
+[PG 9种索引的应用场景](https://developer.aliyun.com/article/111793)
+
+## 日常运维
+
+插件[`pageinspect`](https://www.postgresql.org/docs/15/pageinspect.html)，用于分析数据页中的内容。
+
+### 关于空间回收
+
+[Routine Vacuuming](https://www.postgresql.org/docs/15/routine-vacuuming.html)
+
+定期执行VACUUM命令：
+- 回收已更新/删除行所占空间
+- 更新系统统计信息表，保证规划器产生的计划质量
+- 更新VM（可见性映射），保证index only scan的性能
+- 避免32-bit事务ID重叠造成的旧数据丢失
+
+VACUUM：
+- 获取锁：Share Update Exclusive
+- 可以并行执行，不影响表行的CRUD，但会阻止对表定义的修改（ALTER TABLE不可用）
+- 回收的空间，不会返还给操作系统
+
+VACUUM FULL：
+- 获取（最重的排他）锁：Access Exclusive
+- 更慢
+- 可以向操作系统返还多余的硬盘空间，因为全表数据写入了新的表文件
+
+社区插件：
+- [pg_repack](https://github.com/reorg/pg_repack): 在线重建表/索引，不会长时间锁表
+- [pg_sequeeze](https://github.com/cybertec-postgresql/pg_squeeze)
+- [pgcompacttable](https://github.com/dataegret/pgcompacttable)
+
+### 重建索引
+
+索引膨胀：反复更新的B树索引有可能存在某些页上只有少量索引元组，而且逻辑上相邻的页面在物理上并不相邻。
+
+函数：`pgstatindex`用于查看BTree索引的统计信息。Refer to：[F.33. pgstattuple](https://www.postgresql.org/docs/current/pgstattuple.html)
+
+REINDEX
+- 默认需要（最重的排他）锁：Access Exclusive
+- 如果使用并发模式（`CONCURRENTLY `），则需要锁：SHARE UPDATE EXCLUSIVE
+
+### Analyze
+
+上次analyze时间：表[`pg_stat_user_tables`](https://www.postgresql.org/docs/15/monitoring-stats.html#MONITORING-PG-STAT-ALL-TABLES-VIEW)
+
+### 事务ID与事务冻结
+
+PG的事务ID是32bit的，可用总量为2^32 - 3，约为40亿左右。
+
+PG的MVCC依赖于表行的xmin值（更新事务ID）的对比来决定可见性：xmin小于当前事务ID的行才能可见。所以对于某一事务来说，有20亿xmin行不可见，有20亿可见。一旦事务ID耗尽一半，将会有正常数据不可见的情况发生。
+
+为了避免这种事情的发生，PG引入了冻结freezing操作。PG9.4以后，冻结操作会设置表行的`t_infomask`的`XMIN_FROZEN`位，如果表行的xmin < current_txn_id - `vacuum_freeze_min_age`
+
+当表的`pg_class.relfrozenxid` >= `vacuum_freeze_table_age`（不会大于`autovacuum_freeze_max_age`的95%）时，vacuum也会进入aggressive模式。
+
+- [25.1.5. Preventing Transaction ID Wraparound Failures](https://www.postgresql.org/docs/15/routine-vacuuming.html#VACUUM-FOR-WRAPAROUND)
+- [聊聊PostgreSQL事务id那点事](https://www.modb.pro/db/251408)
+- [Chapt6 - Vacuum Processing](https://www.interdb.jp/pg/pgsql06.html)
+- [[译文] PostgreSQL 中的 MVCC — Transaction ID环绕和冻结](https://www.modb.pro/db/73429)
+
+### 监控
+
+unix工具：`ps`，`vmstat`，`top`等
+
+[Postgres 13 Observability Update](https://dataegret.com/2020/10/postgres-13-observability-updates/)
+
+##### 获取当前各个后端进程信息的SQL
+
+```sql
+SELECT pg_stat_get_backend_pid(backendid) AS pid,
+       pg_stat_get_backend_activity(backendid) AS query,
+       pg_stat_get_backend_activity_start(backendid) AS start_time
+FROM pg_stat_get_backend_idset() AS backendid;
+```
+
+### 锁
+
+见文档：https://www.postgresql.org/docs/15/explicit-locking.html
