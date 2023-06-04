@@ -405,7 +405,7 @@ vm/fsm文件：
 - fsm: https://www.postgresql.org/docs/current/storage-fsm.html
 - vm: https://www.postgresql.org/docs/current/storage-vm.html
 
-<oid>_init：无日志表，`create unlogged table xxx(...);`
+`<oid>_init`：无日志表，`create unlogged table xxx(...);`
 
 快速查看oid：`select oid, relfilenode from pg_class where relname = '<object>'`
 > relfilenode指向对应的文件名，对于确定的一张表来说是可变的，例如vacuum full操作。
@@ -604,7 +604,7 @@ pg_dump -d 'db1' -t '<table>' | psql -d 'db2' # 将db1中的表迁移至db2
 从库：
 - `touch ${PGDATA}/recovery.signal`
 - restore_command = 'cp `<DIR>`/%f %p'
-- restore_target_<xxx> = ?
+- `restore_target_<xxx>` = ?
 
 conf: `recovery_target_inclusive`是否恢复target指定的那个点？
 - 时间点：`select current_timestamp`
@@ -889,7 +889,7 @@ PG的事务ID是32bit的，可用总量为2^32 - 3，约为40亿左右。
 
 PG的MVCC依赖于表行的xmin值（更新事务ID）的对比来决定可见性：xmin小于当前事务ID的行才能可见。所以对于某一事务来说，有20亿xmin行不可见，有20亿可见。一旦事务ID耗尽一半，将会有正常数据不可见的情况发生。
 
-为了避免这种事情的发生，PG引入了冻结freezing操作。PG9.4以后，冻结操作会设置表行的`t_infomask`的`XMIN_FROZEN`位，如果表行的xmin < current_txn_id - `vacuum_freeze_min_age`
+为了避免这种事情的发生，PG引入了冻结freezing操作。PG9.4以后，冻结操作会设置表行的`t_infomask`的`XMIN_FROZEN`位，如果表行的`xmin < current_txn_id - vacuum_freeze_min_age`
 
 当表的`pg_class.relfrozenxid` >= `vacuum_freeze_table_age`（不会大于`autovacuum_freeze_max_age`的95%）时，vacuum也会进入aggressive模式。
 
