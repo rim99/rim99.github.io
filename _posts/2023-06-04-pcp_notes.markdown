@@ -80,6 +80,7 @@ select pg_conf_reload();
 
 psql可以修改内容的输出格式，例如HTML: `psql -H -c "select 1"`
 
+```
 \c 命令可以立即修改登陆用户 -> \c <db> <user> [-占位符表示不修改]
 
 \x 美化输出，行列互换
@@ -99,6 +100,7 @@ psql可以修改内容的输出格式，例如HTML: `psql -H -c "select 1"`
 \errverbose 显示前次报错的详细信息
 
 <SQL>;\watch 1 每1秒执行一次SQL命令
+```
 
 ## 日志
 
@@ -118,7 +120,7 @@ cache表示：每次预先读取xx个数字，有可能造成乱序插入。
 
 ## 导出数据
 
-\copy：
+`\copy`：
 - 可以执行多行SQL命令
 - 不需要管理员权限。此外，`copy`使用STDIN/STDOUT也不需要管理员权限
 
@@ -180,8 +182,6 @@ order by relation:regclass;\watch 1
 ## SQL in PG
 
 `select word from pg_get_keywords()`获得PG关键字
-
-《Postgres 9种 索引使用范围》
 
 PL/pgSQL - 创建自定义函数、触发器、存储过程
 
