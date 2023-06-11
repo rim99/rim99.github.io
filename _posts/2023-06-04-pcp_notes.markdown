@@ -579,6 +579,19 @@ bash> pg_dump -t '<table>' -f '<target_file>'
 
 plain类型的备份结果是SQL脚本，使用`psql`完成导入。而custom/dir/tar都需要使用`pg_restore`来完成导入。
 
+```
+$> pg_restore -d postgres -p 5432 -h localhost <dump_output>
+```
+
+压缩plain类型的dump
+
+```
+$> pg_dump dbname | gzip > filename.gz
+
+$> gunzip -c filename.gz | psql dbname
+$> cat filename.gz | gunzip | psql dbname
+```
+
 查找指定用户的所有视图:
 
 ```sql
