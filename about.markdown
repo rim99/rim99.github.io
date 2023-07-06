@@ -19,4 +19,4 @@ permalink: /about/
 
 VIM党。极度喜欢Scala。龟速学习C++/Go/Rust中。。。
 
-如果需要，可以联系我：`echo emhhbmd4aW5Ab3V0bG9vay5jb20K | base64 -d`
+如果需要，可以联系我：`echo enhpbjMzMDZAMTI2LmNvbQo= | base64 -d`

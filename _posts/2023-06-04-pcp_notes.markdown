@@ -309,7 +309,7 @@ BG Process
       - `psql> checkpoint;`手动触发
       - `checkpoint_timeout`超时触发
       - `max_wal_size`超大触发
-      - 执行复制触发：`pg_basebackup, pg_start_backup()`
+      - 执行备份时触发：`pg_basebackup, pg_start_backup()`
       - 执行恢复时触发
       - create/drop database
 - autovacummn launcher:
@@ -476,7 +476,7 @@ redo日志
 3. 两缓存异步刷盘：checkpoint, bgwriter, etc.
 
 WAL buffer刷盘时机：
-1. 事务同步提交（synchronous_commit = 'on'）。lsn，每一个page都有一个pd_lsn，用于对比确认内存中的事务是否提交
+1. 事务同步提交（synchronous_commit = 'on'）。lsn，每一个page都有一个pg_lsn，用于对比确认内存中的事务是否提交
 2. WAL writer进程到达间歇时间（默认wal_writer_delay=200ms）
 3. 创建checkpoint
 4. WAL缓冲区满
