@@ -37,4 +37,4 @@ sudo apt install -y time
 
 Linux里的`time`命令，使用占位符的方式定制输出项。其中M表示输出进程的内存使用的最大RSS值，单位**KB**。
 
-> RSS (Resident Set Size)，表示进程堆栈的内存占用情况。不会包含共享库以及swap区的占用。
+> RSS (Resident Set Size)，表示进程堆栈的内存占用情况。完整地包含了共享库的内存占用，但不包含swap区的占用。
