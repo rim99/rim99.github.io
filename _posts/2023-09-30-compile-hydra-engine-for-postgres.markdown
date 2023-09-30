@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Postgres列式引擎hydra的编译安装"
+title: "Postgres列式引擎Hydra的编译安装"
 date: 2023-09-30 11:16:39 +0800
 categories: 原创
 ---
@@ -8,7 +8,7 @@ categories: 原创
 [Hydra](https://www.hydra.so/)是一款为Postgres设计开发的列式存储引擎，以AGPL协议开源，主要针对的是OLAP分析性场景。
 
 虽然Hydra源代码开源，但是官方只提供了两种使用方式：
-- 公有云平台的收费Image，主要用来做商业服务
+- 公有云虚拟机镜像，主要用来做付费商业服务
 - 容器镜像，主要做开发测试性质的任务
 
 要想安装在自己服务器运行的PG里，还是需要手动编译的。这里我的PG是自己编译安装在本地的14.9版本。
@@ -61,7 +61,7 @@ sudo systemctl restart postgresql
 psql -U postgres
 ```
 
-在控制台里重建扩展
+在控制台里创建扩展
 
 ```
 postgres=# create extension columnar;
@@ -75,4 +75,4 @@ postgres=# create table test(id bigint, info text) using columnar;
 CREATE TABLE
 ```
 
-然后就可以愉快的玩耍了！
+然后就可以愉快地玩耍了！
