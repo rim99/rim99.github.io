@@ -13,14 +13,14 @@ categories: 原创
 
 要想安装在自己服务器运行的PG里，还是需要手动编译的。这里我的PG是自己编译安装在本地的14.9版本。
 
-首先拉一下hydra的源码仓
+首先拉一下Hydra的源码仓
 
 ```
 git clone https://github.com/hydradatabase/hydra.git
 cd hydra
 ```
 
-然后在hrdya的repo根目录下执行
+然后在Hydra的repo根目录下执行
 
 ```
 cd /columnar 
