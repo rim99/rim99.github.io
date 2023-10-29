@@ -5,13 +5,13 @@ date: 2023-10-28 21:05:29 +0800
 categories: 原创
 ---
 
-Linux的内存管理模块里有两个非独有概念：巨页（hugepage）和透明巨页（transparent hugepage, THP）。
+Linux的内存管理模块里有两个概念：巨页（hugepage）和透明巨页（transparent hugepage, THP）。
 
 ## 内存页面与TLB
 
 Linux的内存管理是以页面（page）为基本单位进行管理的。每一个进程的内存都将内存页面，通过虚拟地址空间的方式映射到物理内存。每一块内存页面内部都对应着连续的物理内存区域。
 
-TLB是CPU中的物理单元，能够缓存内存页面的映射记录。TLB本身的性能很快，和寄存器类似。但是TLB缓存容量很小。以AMD Zen+架构为例：
+TLB是CPU中的物理单元，能够缓存内存页面的映射记录。TLB本身的性能很快，接近于寄存器，而高于L1级CPU缓存。但是TLB缓存容量很小。以AMD Zen+架构为例：
 
 缓存类型   | L0  | L1   | L2
 :-:       | :-: | :-:  | :-:
@@ -25,14 +25,14 @@ Linux中的经典内存页面大小为4KB。假如TLB缓存的全部页面是4KB
 ## 巨页
 
 为了提高TLB缓存效率，操作系统引入了巨页这个概念，允许内存页面大小增加到更大：
-- X86-64架构支持2MB和1GB两种方式
-- ARM支持更多： 64kB, 2MB, 32MB以及1GB
+- X86-64架构支持2MB和1GB两种大小
+- ARM支持更多：64kB，2MB，32MB以及1GB
 
 从而，进程内存需要更少的页面映射记录。
 
 ### 巨页的缺点
 
-操作系统上可以运行很多进程，不同的进程创建退出，会导致整个系统内存的碎片化。假如某个进程在申请巨页内存的时候，系统恰好在此刻无法找到连续的内存区域来满足需求，那就会发生内存分配错误。这种运行时异常，很容易造成运行时错误，影响到用户体验。
+操作系统上可以运行很多进程，不同的进程创建退出，会导致整个系统内存的碎片化。假如某个进程在申请巨页内存的时候，系统恰好在此刻无法找到连续的物理内存区域来满足需求，那就会发生内存分配错误。这种运行时异常，应用程序很可能并没有刻意处理。此时报错会影响到用户体验。
 
 ## 透明巨页
 
@@ -59,9 +59,9 @@ Linux中的经典内存页面大小为4KB。假如TLB缓存的全部页面是4KB
 再比如在服务器场景中，系统运行的进程比较稳定。内存碎片并不严重。那么透明巨页的优势难以发挥，反而其缺点被放大了不少。服务器进程，往往需要很大的内存，非连续内存区域的性能此时较差。而且，内存自动化复制还会对进程的运行性能造成一定的恶化。
 在MongoDB和Oracle的官方文档中，透明巨页均被要求关闭。更有甚者，MySQL的非官方引擎TokuDB在透明巨页开启时，会拒绝启动。
 
-PostgreSQL本身并不严格拒绝透明巨页。Percona有一篇博客[6]()测试了，PostgreSQL 10在透明巨页开启和关闭场景下的性能，发现：在透明巨页开启时，数据库的TLB缓存命中率会下降，同时TPS服务能力也存在肉眼可见的差距。
+Percona有一篇博客[7]()测试了，PostgreSQL 10在透明巨页开启和关闭场景下的性能。结果发现：在透明巨页开启时，数据库的TLB缓存命中率会下降一两个百分点，同时TPS服务能力也存在清晰的差距。
 
-标准巨页是始终是有必要的，因为TLB缓存命中率是进程运行性能的保证之一。
+只要进程需要的内存足够大，标准巨页就是有必要的。因为TLB缓存命中率是进程运行性能的保证之一。
 
 ## 关于使用
 
@@ -100,12 +100,18 @@ sysctl -p
 - `ShmemPmdMapped`项，对应于标准巨页在进程共享内存（shmem/tmpfs）中的大小。
 - `Shared_Hugetlb`和`Private_Hugetlb`对应于标准巨页hugetlbfs页面对应的内存空间。由于历史原因，这些空间没有计算在`RSS`或`PSS`中。
 
-## 参考文件
-1. [Transparent Hugepage Support - Linux Doc](https://www.kernel.org/doc/Documentation/vm/transhuge.txt)
+### 其他
+
+更多关于巨页和透明巨页的使用方式，请参考Linux内核文档。
+
+## 参考资料
+1. [Transparent Hugepage Support - The Linux Kernel documentation](https://www.kernel.org/doc/Documentation/vm/transhuge.txt)
 2. [Zen+ - Microarchitectures - AMD - WikiChip](https://en.wikichip.org/wiki/amd/microarchitectures/zen%2B)
-3. [Disable Transparent Huge Pages (THP) - MongoDB Manual](https://www.mongodb.com/docs/manual/tutorial/transparent-huge-pages/)
-4. [Disabling Transparent HugePages - Oracle Database / Release 19](https://docs.oracle.com/en/database/oracle/oracle-database/19/cwlin/disabling-transparent-hugepages.html#)
-5. [PostgreSQL and Hugepages: Working with an abundance of memory in modern servers](https://wiki.postgresql.org/images/7/7d/PostgreSQL_and_Huge_pages_-_PGConf.2019.pdf)
-6. [Settling the Myth of Transparent HugePages for Databases - Percona](https://www.percona.com/blog/settling-the-myth-of-transparent-hugepages-for-databases/)
-7. [How to use, monitor, and disable transparent hugepages in Red Hat Enterprise Linux 6 and 7? ](https://access.redhat.com/solutions/46111)
-8. [How to check Transparent HugePage usage per process in Linux with examples](https://www.golinuxcloud.com/check-transparent-hugepage-usage-per-process/)
+3. [huge_pages - 20.4. Resource Consumption - PostgreSQL Doc](https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-HUGE-PAGES)
+4. [Disable Transparent Huge Pages (THP) - MongoDB Manual](https://www.mongodb.com/docs/manual/tutorial/transparent-huge-pages/)
+5. [Disabling Transparent HugePages - Oracle Database / Release 19](https://docs.oracle.com/en/database/oracle/oracle-database/19/cwlin/disabling-transparent-hugepages.html#)
+6. [PostgreSQL and Hugepages: Working with an abundance of memory in modern servers](https://wiki.postgresql.org/images/7/7d/PostgreSQL_and_Huge_pages_-_PGConf.2019.pdf)
+7. [Settling the Myth of Transparent HugePages for Databases - Percona](https://www.percona.com/blog/settling-the-myth-of-transparent-hugepages-for-databases/)
+8. [How to use, monitor, and disable transparent hugepages in Red Hat Enterprise Linux 6 and 7? ](https://access.redhat.com/solutions/46111)
+9. [How to check Transparent HugePage usage per process in Linux with examples](https://www.golinuxcloud.com/check-transparent-hugepage-usage-per-process/)
+10. [The /proc Filesystem — The Linux Kernel documentation](https://www.kernel.org/doc/html/latest/filesystems/proc.html)
